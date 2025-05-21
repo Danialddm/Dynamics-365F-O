@@ -1,0 +1,11 @@
+install the commerce in a new VM cloud:
+- download the setup from lcs-->share asset-->sofware deployable package based on your F&O version
+- go to the folder and open poershell as admin
+- .\StoreCommerce.Installer.exe install --enablewebviewdevtools
+-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\v2.0.50727]
+      "SystemDefaultTlsVersions" = dword:00000001
+      "SchUseStrongCrypto" = dword:00000001
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\v4.0.30319]
+      "SystemDefaultTlsVersions" = dword:00000001
+      "SchUseStrongCrypto" = dword:00000001
+the above shold add on another path that appear during installation process.
