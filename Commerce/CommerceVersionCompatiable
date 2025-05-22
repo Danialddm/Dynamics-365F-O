@@ -1,0 +1,11 @@
+🟢 Store Commerce version ≤ CSU version
+🟢 CSU version ≤ D365 Commerce (HQ) version
+
+-------
+The csu version of the retail server is like "9.47.24064.5" and can find the webroot of the bin folder of the retail server.
+one of the dll (Microsoft.Dynamics.Commerce.*.dll) related to the bin folder can consider as csu version.
+Always match Store Commerce app version to CSU version.
+you can find more details in the lcs of commerce file.
+For non stand alone envi. you can check from the lcs.
+the number like "10.0.47" is build number and version of the commerce not csu version.
+
