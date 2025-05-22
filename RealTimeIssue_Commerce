@@ -1,5 +1,6 @@
 - If you have an issue for callint the RTS, it is red on health check, you should run the retail tenant update tool again using powershell ISE.
-- After running, if we have an error about job sending or azure blob storage, we should run the retail retarget tool(for ruuning we should add -trustedcertificate to all section).
+- In the tentant update tool ignore server certificate error using "- TrustServerCertificate" at the end of all "sqlcmd"
+- After running, if we have an error about job sending or azure blob storage, we should run the retail retarget tool(for running we should add -trustedcertificate to all section).
 - If its needed to start azure blob storage--> C:\Program Files (x86)\Microsoft SDKs\Azure\Storage Emulator
 ////////////////////////////////////////////////////retarget file with some changes for server certificate/////////////////////////////////////
  <#
