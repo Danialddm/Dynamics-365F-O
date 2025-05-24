@@ -1,5 +1,6 @@
 https://arfnodev08e443775586d4552ddevaos.axcloud.dynamics.com/soap/services/RetailCDXRealTimeService--check CDX
 https://arfnodev08e443775586d4552ddevret.axcloud.dynamics.com/healthcheck?testname=ping -- check db and realtime service
+https://scuahrofdyp49006424-rs.su.retail.dynamics.com/Commerce/GetEnvironmentConfiguration//get all vhd id and csu version
 
 ///////////////
 If the DB backup came from a different tenant then try these steps:
