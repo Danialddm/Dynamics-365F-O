@@ -10,7 +10,7 @@ internal class AmiraCleanDownloadSysOperationAutoUI extends SysOperationAutomati
         storeNumber.lookupButton(FormLookupButton::Always);
     }
 
-    public void postRun()
+    public void postRun()//multiselect
     {
         Query		            query		        = new Query();
         QueryBuildDataSource    qbdsLegalEntity     = query.addDataSource(tablenum(RETAILCONNDATABASEPROFILE));
@@ -20,7 +20,32 @@ internal class AmiraCleanDownloadSysOperationAutoUI extends SysOperationAutomati
         SysLookupMultiSelectCtrl::constructWithQuery(this.dialog().dialogForm().formRun(),
             storeNumber.control(), query, false, selectedFields);
     }
+    //normal select--dont need postrun()--//////////////////////////////////////////////////
+    public void postBuild()
+    {
+        contract		= this.dataContractObject() as AFZSendEmailAttachSOContract;
+        salesId	= this.bindInfo().getDialogField(contract, methodStr(AFZSendEmailAttachSOContract, parmsalesId));
+        salesId.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZSendEmailAttachSOUIBuilder, lookupSalesId), this);
 
+        toEmailId	= this.bindInfo().getDialogField(contract, methodStr(AFZSendEmailAttachSOContract, parmToemail));
+        toEmailId.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZSendEmailAttachSOUIBuilder, lookupEmail), this);
+    }
+
+    private void lookupSalesId(FormStringControl _formStringControl)
+    {
+        Query query = new Query();
+        QueryBuildDataSource qbds;
+        SysTableLookup sysTableLookup;
+
+        sysTableLookup = SysTableLookup::newParameters(tableNum(SalesTable), _formStringControl);
+            
+        qbds = query.addDataSource(tableNum(SalesTable));
+
+        sysTableLookup.addLookupfield(fieldNum(SalesTable, SalesId), true);
+        sysTableLookup.parmQuery(query);
+        sysTableLookup.performFormLookup();
+    }
+/////////////////////////////////////////////////////--///////////////
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 [DataContractAttribute]  
