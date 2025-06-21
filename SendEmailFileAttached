@@ -1,0 +1,81 @@
+this sysoperation class in sysoperation framwork for batch job sending.
+----
+internal class AFZSendEmailAttachSOSysOperationService extends SysOperationServiceBase
+{
+    public void ProcessOperation(AFZSendEmailAttachSOContract  _contract)
+    {
+        SalesId              _salesId;
+        Email                _toEmail;
+        _salesId = _contract.parmsalesId();
+        _toEmail = _contract.parmToemail();
+        SysMailerMessageBuilder messageBuilder = new SysMailerMessageBuilder();
+        List                lineList = new List(Types::String); 
+        SalesLine salesLine;
+        Email   toEmail;
+        Email   fromEmail;
+        DocuRef docuRef;
+        DocuValue docuValue;
+        DocuType docuType;        
+        System.IO.Stream stream = null;
+        container fileContent;
+        Filename attacheFileName;
+         
+        try
+        {
+            fromEmail = SYSEMAILPARAMETERS::find().SMTPUserName;
+            toEmail   =_toEmail;
+            docuRef.clear();
+            while select salesLine where salesLine.SalesId == _salesId
+            {
+                while select docuRef
+                where docuRef.RefRecId == salesLine.RecId &&
+                docuRef.RefTableId == salesLine.TableId
+                {
+                    if (docuRef.isValueAttached())
+                    {
+                        DocuValue docValue = docuRef.docuValue();
+                        var  storageProvider = docValue.getStorageProvider();
+                        if (storageProvider != null)
+                        {
+                            var docContents = storageProvider.GetFile(docValue.createLocation());
+                            stream = docContents.Content;
+                            attacheFileName = docValue.OriginalFileName;
+                            if (stream && attacheFileName)
+                            {
+                                messageBuilder.addAttachment(stream, attacheFileName);
+                            }
+                        }
+                        else
+                        {
+                            throw error("@ApplicationFoundation:Docu_UnsupportedStorageType");
+                        }
+                    }
+                }
+            }
+            salesLine.clear();
+            while select salesLine where salesLine.SalesId == _salesId
+            {
+                lineList.addStart("SalesId" + ": "  + salesLine.SalesId);
+                lineList.addStart("ItemId" + ": " + salesLine.ItemId);
+                lineList.addStart("ItemName" + ": " + any2Str(salesLine.Name));
+                lineList.addStart("DeliveryName" + ": " + any2Str(salesLine.DeliveryName));
+            }           
+            str json = FormJsonSerializer::serializeClass(lineList);
+            messageBuilder.setBody(json, false);
+            messageBuilder.setSubject("Sales line attacment info");
+            messageBuilder.addTo(toEmail);
+            messageBuilder.setFrom(fromEmail);            
+            SysMailerFactory::sendNonInteractive(messageBuilder.getMessage());
+            info("The email has been sent successfully.");
+        }
+        catch (Exception::CLRError)
+        {
+            throw error(strFmt("@ApplicationFoundation:SysMailerSMTP_GenericError","@ApplicationFoundation:SysEmailHistory_Caption"));
+        }
+        catch (Exception::Error)
+        {
+            throw error(strFmt("@ApplicationFoundation:SysMailerSMTP_GenericError","@ApplicationFoundation:SysEmailHistory_Caption"));
+        }
+    }
+
+}
