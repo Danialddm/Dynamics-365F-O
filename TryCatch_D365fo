@@ -22,8 +22,16 @@ retry;
 catch(Exception::CLRError)        
 {            
 ttsAbort;                        
-System.Exception ex  = CLRInterop::getLastException();            
-response.ResultResponse(ex.Message);                              
+    System.Exception clrEx = CLRInterop::getLastException();
+    str errorMsg = clrEx != null ? clrEx.get_Message() : "Unknown CLR error";
+
+    // Optional: get inner exception details
+    if (clrEx.get_InnerException() != null)
+    {
+        errorMsg += ' | Inner: ' + clrEx.get_InnerException().get_Message();
+    }
+
+    error(errorMsg); // Or use errorRun += errorMsg;                              
 }
            
 
