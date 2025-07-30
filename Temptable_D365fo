@@ -1,1 +1,22 @@
-Temp table(InMemory) buffer
+for temp table cosider this :
+setTmpData()-->Just copies the contents of _tmp into invTmpUpdate. You can loop it, but not select/update from it.
+linkPhysicalTableInstance()-->	Links the underlying SQL #TempTable. Enables select, forUpdate, update, etc. ✅
+- you can not select on the temp table unless use mentioned func.
+
+    public void updateTaxAmountInWords(AFZPrintTransferOrderLinesTmp _tmp)
+    {
+        AFZPrintTransferOrderLinesTmp     invTmpUpdate;
+        InventTransferTable invTOTable = InventTransferTable::findRecId(invTransferTableRecId);
+        InventTransferId tr = invTOTable.TransferId;
+        real taxTotal =0;
+        while select * from _tmp where _tmp.TaxComponentAmount !=0
+        {
+            taxTotal += _tmp.TaxComponentAmount;
+        }
+        invTmpUpdate.linkPhysicalTableInstance(_tmp);//fpr all types of select     
+        select forupdate firstonly invTmpUpdate where invTmpUpdate.TransferId == tr;
+        ttsbegin;
+            invTmpUpdate.TaxAmountInWords = this.convertAmountInWords(taxTotal);
+            invTmpUpdate.doUpdate();
+        ttscommit;
+    }
