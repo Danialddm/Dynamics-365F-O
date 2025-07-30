@@ -1,0 +1,10 @@
+if you have error about the parameters that not equal to cell definitions, remove the following from xml rdl file.
+it may have you other errors about textbox but you get the above error.
+-----------------------------------------------------------
+&lt;ReportParametersLayout&gt;
+    &lt;GridLayoutDefinition&gt;
+      &lt;NumberOfColumns&gt;4&lt;/NumberOfColumns&gt;
+      &lt;NumberOfRows&gt;2&lt;/NumberOfRows&gt;
+    &lt;/GridLayoutDefinition&gt;
+  &lt;/ReportParametersLayout&gt;
+---------------------------------------------------------
