@@ -12,3 +12,17 @@
   super();       
   }    
 }
+///////////////////////////////////////////////////////////////from form event/////////////////////////////
+    [FormEventHandler(formStr(CustTable), FormEventType::Initialized)]
+    public static void CustTable_OnInitialized(xFormRun sender, FormEventArgs e)
+    {
+        QueryBuildRange qbr;
+
+        FormRun formRun= sender as FormRun;
+        FormDataSource fds = formRun.datasource(FormDatasourceStr(CustTable,AFZSIFYLogTable));
+        QueryBuildDataSource qbds = fds.queryBuildDataSource();
+
+        qbds.clearRanges();
+        qbr = qbds.addRange(fieldnum(AFZSIFYLogTable, IsSentToSIFY));
+        qbr.value(queryValue(1));
+    }
