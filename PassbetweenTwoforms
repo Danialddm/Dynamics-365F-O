@@ -1,0 +1,71 @@
+     /// <summary>
+    /// Performs a lookup for the <c>Relationship</c> field.
+    /// </summary>
+    /// <param name="_formControl">
+    /// The <c>FormStringControl</c> instance for which the lookup is being performed.
+    /// </param>
+    /// <param name="_caller">
+    /// The calling object to pass to the lookup form.
+    /// </param>
+    /// <param name="_record">
+    /// The record to pass to the lookup form.
+    /// </param>
+    public static void lookupRelationshipType(FormStringControl _formControl, Object _caller, Common _record)
+    {
+        FormRun formRun;
+        Args args;
+
+        args = new Args(formStr(HcmRelationshipTypeLookup));
+        args.caller(_caller);
+        args.parm(_caller.name());
+        args.record(_record);
+
+        formRun = ClassFactory::formRunClassOnClient(args);
+        formRun.init();
+        _formControl.performFormLookup(formRun);
+    }
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+for passing from one menuitem on custinvoicejour form which opens the custom form, we should do this:
+in custom form:
+  public void init()
+  {
+      super();
+        CustInvoiceJour currRec;
+
+      QueryBuildRange qbr;
+       currRec = element.args().record() as CustInvoiceJour;//this is full, if empty you can use args in clicked of menuitem which oprn this form
+
+      FormDataSource ds = this.dataSource(formDataSourceStr(AFZSIFYInvCancelLogTable, AFZSIFYLogTable));
+      Query query = new Query();
+
+      QueryBuildDataSource qbdsMain = query.addDataSource(tableNum(AFZSIFYLogTable));
+      qbdsMain.relations(false);
+      qbdsMain.clearLinks();
+
+      QueryBuildDataSource qbdsLog = qbdsMain.addDataSource(tableNum(CustInvoiceJour));
+      qbdsLog.joinMode(JoinMode::InnerJoin);
+      qbdsLog.addLink(fieldNum(CustInvoiceJour, InvoiceId),fieldNum(AFZSIFYLogTable, CancelInvoiceId));
+      
+      qbr = qbdsLog.addRange(fieldnum(CustInvoiceJour, SalesId));
+      qbr.value(SysQuery::valueNot(''));
+      qbr = qbdsLog.addRange(fieldnum(CustInvoiceJour, InvoiceId));
+      qbr.value(queryValue(currRec.InvoiceId));
+      ds.query(query);
+  }
+
+  [DataSource]
+  class AFZSIFYLogTable
+  {
+      /// <summary>
+      /// order by created date time desc
+      /// </summary>
+      public void executeQuery()
+      {
+          QueryBuildDataSource qbds;
+          qbds = this.query().dataSourceTable(tableNum(AFZSIFYLogTable));
+          qbds.clearRanges();
+          qbds.addSortField(fieldNum(AFZSIFYLogTable, CreatedDateTime), SortOrder::Descending);
+          super();
+      }
+
+  }
