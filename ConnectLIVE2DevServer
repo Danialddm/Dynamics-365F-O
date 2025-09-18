@@ -1,0 +1,6 @@
+ref: https://dynamics365docs.com/d365-enable-uat-database-over-development-machine-using-jit/
+
+1. asl LCS Performance tuning for AX (write to AX)
+2. enable access for public IP
+3. change web.config from Aosservice-->webroot
+4. restart the IIS
