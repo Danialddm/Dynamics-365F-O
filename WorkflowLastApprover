@@ -1,0 +1,19 @@
+private WorkflowUser workflowApprover(PurchTable purchTable)
+{
+    WorkflowTrackingStatusTable workflowTrackingStatusTable;
+    WorkflowTrackingTable workflowTrackingTable;
+    PurchTable purchTableWTT;
+ 
+    select firstonly workflowTrackingTable
+    order by workflowTrackingTable.RecId desc
+    join workflowTrackingStatusTable
+    where workflowTrackingTable.WorkflowTrackingStatusTable == workflowTrackingStatusTable.RecId
+    join purchTableWTT
+    where workflowTrackingStatusTable.ContextTableId == tableNum(PurchTable)
+        && workflowTrackingStatusTable.ContextCompanyId == purchTableWTT.DataAreaId
+        && workflowTrackingStatusTable.ContextRecId == purchTableWTT.RecId
+        && workflowTrackingTable.TrackingContext == workflowtrackingcontext::WorkItem
+        && workflowTrackingTable.TrackingType == workflowtrackingtype::Approval
+        && purchTableWTT.RecId == purchTable.RecId;             
+    return workflowTrackingTable.User;
+}
