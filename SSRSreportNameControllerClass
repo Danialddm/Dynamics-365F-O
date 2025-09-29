@@ -1,0 +1,14 @@
+[ExtensionOf(classStr(AFPPurchaseOrderDraftController))]
+final class AFPPurchaseOrderDraftController_Alfazance_Extension
+{
+    public SRSCatalogItemName parmReportName(SRSCatalogItemName _reportName)
+    {
+
+        next parmReportName(_reportName);
+
+        reportName = ssrsReportStr(AFZPurchPurchaseOrderDraft, Report);
+        return reportName;
+
+    }
+
+}
