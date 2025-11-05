@@ -1,0 +1,6 @@
+        HcmWorkerRecId hcm = HcmWorker::userId2Worker(_custCollectionLetterJour.CreatedBy);
+        HcmWorker hcmWorker = HcmWorker::find(hcm);
+        HcmPositionRecId hcmPositionRecId = HcmWorkerHelper::getPrimaryPosition(hcm);
+        _custcollectionJourTmp.AFZCreatorPosition = HcmTitle::find(HcmPositionDetail::findByPosition(hcmPositionRecId).Title).TitleId;
+        
+        _custcollectionJourTmp.AFZCreatorName = DirPersonName::find(hcmWorker.Person).FirstName;
