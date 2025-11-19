@@ -231,3 +231,38 @@ final class SalesOrderLineV2Entity_Extension
         return ret;
     }
 }
+////////////////////////////////////////////////////////////////////////////////
+[ExtensionOf(formDataSourceStr(InventQualityOrderTable, InventQualityOrderTable))]
+final class AFZInventQualityOrderTableForm_Extension
+{
+    public int active()
+    {
+        int ret = next active();
+
+        this.updateValidateButton();
+
+        return ret;
+    }
+
+    private void updateValidateButton()
+    {
+        InventQualityOrderTable tableBuffer = this.cursor();
+        FormRun formRun = this.formRun();
+
+        boolean enable = false;
+
+        if (tableBuffer && tableBuffer.AFZQualityOrderWFState == AFZQualityOrderWF::Approved)
+        {
+            enable = true;
+        }
+
+        formcontrol validateBtn =
+        formRun.design().controlName("InventQualityOrderValidate");
+
+        if (validateBtn)
+        {
+            validateBtn.enabled(enable);
+        }
+    }
+
+}
