@@ -1,0 +1,40 @@
+//DO NOT FORGET TO REMOVE THE TABLE TITLE FIELD 1 ADN 1/////
+internal final class AFZInventQualityOrderLineResults_Frm_EHNDL
+{
+    /// <summary>
+    /// caption change
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
+    [FormEventHandler(formStr(InventQualityOrderLineResults), FormEventType::Initialized)]
+    public static void InventQualityOrderLineResults_OnInitialized(xFormRun sender, FormEventArgs e)
+    {
+        FormRun formRun = sender;
+
+        InventTestTable testTable;
+        InventQualityOrderLine  qualityLine;
+
+        qualityLine = formRun.args().record();
+
+        if (qualityLine)
+        {
+            select firstOnly testTable
+            where testTable.TestId == qualityLine.TestId;
+
+            if (testTable)
+            {
+                str newCaption =
+                strFmt(
+                    "%1 | %2 : %3 - %4",
+                    "@SYS113850",
+                    qualityLine.QualityOrderId,
+                    testTable.TestId,
+                    testTable.Description
+                );
+
+                formRun.design().caption(newCaption);
+            }
+        }
+    }
+
+}
