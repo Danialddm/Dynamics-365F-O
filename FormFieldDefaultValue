@@ -1,0 +1,19 @@
+internal static final class AFZPurchReqTable_DS_Extension
+{
+    /// <summary>
+    /// make a default value for lookup auth person
+    /// </summary>
+    [FormDataSourceEventHandler(formDataSourceStr(PurchReqTable, PurchReqTable), FormDataSourceEventType::Activated)]
+    public static void PurchReqTable_OnActivated(FormDataSource sender, FormDataSourceEventArgs e)
+    {
+        PurchReqTable reqtable = sender.cursor();
+
+        HcmWorker worker = HcmWorker::find(reqtable.Originator);
+
+        if (worker.RecId)
+        {
+            reqtable.AFZAuthPerson = worker.name();
+        }
+    }
+
+}
