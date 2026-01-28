@@ -1,0 +1,16 @@
+[ExtensionOf(formStr(PurchRFQVendReply))]
+internal final class AFZPurchRFQVendReply_Frm_Extension
+{
+    public void init()
+    {
+        next init();
+
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, Payment)).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, DlvTerm))).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, DlvMode)).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, ValidFrom)).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, ValidTo)).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, VendRef)).mandatory(true);
+        PurchRFQReplyTable_DS.object(fieldNum(PurchRFQReplyTable, DeliveryDate)).mandatory(true);
+  }
+}
