@@ -1,0 +1,20 @@
+[ExtensionOf(formDataSourceStr(PurchTable, PurchTable))]
+internal final class AFZPurchTable_DS_Extension
+{
+    public int active()
+    {
+        int ret = next active();
+
+        PurchTable purchTable = this.cursor();
+        FormStringControl formCtrl;
+        if(purchTable.AFZAuthPerson)
+        {
+            FormDataSource formDS = this;
+
+            formCtrl = formDS.formRun().design().controlName(formControlStr(PurchTable, AFZAuthPerson));
+            formCtrl.allowEdit(false);
+        }
+        return ret;
+    }
+
+}
