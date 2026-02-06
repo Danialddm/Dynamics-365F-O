@@ -1,0 +1,15 @@
+--add an image element on the form and add the following display method of the datasource on it:
+[SysClientCacheDataMethod]
+internal display container riskGroupIndicatorImage()
+{
+    AFZCustomParameters params = this.cursor();
+    real total = params.PaymentHistoryWeight + params.QtySoldWeight + params.ProfitGenWeight;
+    if(total == 100)
+    {
+        return ImageReference::constructForSymbol(ImageReferenceSymbol::GreenCheck).pack();
+    }
+    else
+    {
+        return ImageReference::constructForSymbol(ImageReferenceSymbol::RedX).pack();
+    }
+}
