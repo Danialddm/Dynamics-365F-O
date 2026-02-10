@@ -1,0 +1,58 @@
+--create one form string control on the form and select the proper datasource and then:
+[ExtensionOf(formStr(LedgerJournalControl))]
+public final class AFZLedgerjournalControl_Frm_Extension
+{
+    public SysLookupMultiSelectCtrl multiSelect;
+    public SysLookupMultiSelectCtrl multiSelect_cust;
+    public SysLookupMultiSelectCtrl parmMultiSelect()
+    { 
+        return multiSelect;
+    }
+
+    public SysLookupMultiSelectCtrl parmMultiSelect_cust()
+    {
+        return multiSelect_cust;
+    }
+
+    public void init()
+    {
+        next init();
+
+
+        FormStringControl formCtrl_Vend, formCtrl_Cust;
+
+
+        formCtrl_Vend = this.design().controlName(formControlStr(LedgerJournalControl, VendGrpLookup));
+        multiSelect = SysLookupMultiSelectCtrl::construct(this,formCtrl_Vend,queryStr(VendGroupSRS));
+
+        formCtrl_Cust = this.design().controlName(formControlStr(LedgerJournalControl, CustGrpLookup));
+        multiSelect_cust = SysLookupMultiSelectCtrl::construct(this,formCtrl_Cust,queryStr(CustGroupSRS));
+    }
+
+}
+\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\AND/////////////////////////////////////////////////////////////
+internal static class AFZLedgerJournalControl_VendCustGroup_EHNDL
+{  
+    [FormDataFieldEventHandler(formDataFieldStr(LedgerJournalControl, LedgerJournalName, AFZVendGroup), FormDataFieldEventType::Modified)]
+    public static void AFZVendGroup_OnModified(FormDataObject sender, FormDataFieldEventArgs e)
+    {
+
+        FormRun formRun = sender.datasource().formRun();
+        SysLookupMultiSelectCtrl multiSelectCtr = formRun.parmMultiSelect();
+        LedgerJournalName ledName = formRun.dataSource(formDataSourceStr(LedgerJournalControl,LedgerJournalName)).cursor();
+        ledName.AFZVendGroup = con2Str(multiSelectCtr.getSelectedFieldValues(), ';');
+        sender.datasource().write();
+    }
+
+    [FormDataFieldEventHandler(formDataFieldStr(LedgerJournalControl, LedgerJournalName, AFZCustGroup), FormDataFieldEventType::Modified)]
+    public static void AFZCustGroup_OnModified(FormDataObject sender, FormDataFieldEventArgs e)
+    {
+
+        FormRun formRun = sender.datasource().formRun();
+        SysLookupMultiSelectCtrl multiSelectCtr_cust = formRun.parmMultiSelect_cust();
+        LedgerJournalName ledName = formRun.dataSource(formDataSourceStr(LedgerJournalControl,LedgerJournalName)).cursor();
+        ledName.AFZCustGroup = con2Str(multiSelectCtr_cust.getSelectedFieldValues(), ';');
+        sender.datasource().write();
+    }
+
+}
