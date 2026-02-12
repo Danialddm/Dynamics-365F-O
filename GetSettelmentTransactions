@@ -1,0 +1,32 @@
+ CustVendFindSettlements custVendFindSettlements;
+ TmpCustVendTrans tmpCustVendTrans;
+ LedgerJournalTrans _ledjourTrans;
+ CustVendOpenTransManager manager;
+ VendTrans vendTrans;
+ VendTransOpen vendTransOpen;
+
+custVendFindSettlements = CustVendFindSettlements::construct(ModuleCustVend::Vend, _ledjourTrans);
+ if (ledgerJournalTrans.ledgerJournalTable().JournalType == LedgerJournalType::VendPromissoryNoteRedraw ||
+     ledgerJournalTrans.ledgerJournalTable().JournalType == LedgerJournalType::BankChequeReversal)
+ {
+     custVendFindSettlements.findSettledSettlements();
+ }
+ else
+ {
+     custVendFindSettlements.findSettlements();
+ }
+ tmpCustVendTrans.setTmpData(custVendFindSettlements.tmpCustVendTrans());
+ while select tmpCustVendTrans
+ {
+     changecompany(tmpCustVendTrans.Company)
+     {
+         select firstonly vendTrans
+         where vendTrans.AccountNum == tmpCustVendTrans.AccountNum
+         && vendTrans.Voucher == tmpCustVendTrans.Voucher
+         && vendTrans.TransDate == tmpCustVendTrans.TransDate;
+         vendTransOpen = VendTransOpen::findRefId(vendTrans.RecId);
+     }
+     manager = CustVendOpenTransManager::construct(_ledjourTrans);
+     if(manager != null)
+         totalPaymCur += manager.getSettleAmountPaymCur(vendTransOpen);
+ }
