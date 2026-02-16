@@ -1,0 +1,11 @@
+To show the results like :
+vendor name
+desc/name/qty/item
+line1
+line2
+line3
+
+must create 3 row groups:
+-parent group on vend account
+--child group on vend account
+---row group on recid of the line level table
