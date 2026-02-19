@@ -1,0 +1,8 @@
+     var env = Microsoft.Dynamics.ApplicationPlatform.Environment.EnvironmentFactory::GetApplicationEnvironment();
+     str baseUrl = env.Infrastructure.HostUrl;
+ str menuItemName = "WorkflowWorkListAssignedToMe";
+ str company = curext();
+ str url = strFmt("%1/?mi=%2&cmp=%3",
+  baseUrl,
+  menuItemName,
+  company);
