@@ -1,0 +1,31 @@
+if u have a table with a timesate field, 
+so ur lookup will be empty on the new form unless u override the 
+lookup method.
+In fact u can not use the table relation or edt relation for lookup.
+//dont forget to remove the super otherwise it will be called twice
+    [Control("String")]
+    class AgreementNumber
+    {
+        public void lookup()
+        {
+            //super();
+            Query query = new Query();
+            QueryBuildDataSource qbds;
+
+            qbds = query.addDataSource(tableNum(BankDocumentFacilityAgreement));
+            query.validTimeStateDateTimeRange(DateTimeUtil::minValue(), DateTimeUtil::maxValue());
+
+            SysTableLookup sysTableLookup =
+            SysTableLookup::newParameters(
+            tableNum(BankDocumentFacilityAgreement),
+            this);
+
+            sysTableLookup.addLookupfield(
+            fieldNum(BankDocumentFacilityAgreement, AgreementNumber));
+            sysTableLookup.addLookupfield(
+            fieldNum(BankDocumentFacilityAgreement, BankAccountTable));
+
+            sysTableLookup.parmQuery(query);
+            sysTableLookup.performFormLookup();
+        }
+    }
