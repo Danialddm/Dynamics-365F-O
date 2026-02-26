@@ -1,0 +1,89 @@
+    public InventTransferJour shipment(InventTransferTable    _inventTransferTable)
+    {
+        InventTransferLine  inventTransferLine;
+
+        while select inventTransferLine where inventTransferLine.TransferId == _inventTransferTable.TransferId
+        {
+            InventDim       inventDim = inventTransferLine.inventDim();
+            this.pick(inventTransferLine.InventTransId, inventTransferLine.QtyTransfer, inventDim);
+        }
+
+        InventTransferUpdShip inventTransferUpdShip = InventTransferUpdShip::newParmBuffer(this.createParmTable(_inventTransferTable.TransferId));
+        inventTransferUpdShip.run();
+        return inventTransferUpdShip.parmInventTransferJour();
+    }
+
+    protected void pick(InventTransIdShipment _inventTransId, real _qty, InventDim _inventDim)
+    {
+        InventTransWMS_Pick     inventTransWMS_pick;
+        TmpInventTransWMS       tmpInventTransWMS;
+        InventTrans             inventTranslocal;
+        InventDim               inventDimlocal;
+
+        Query inventTransQuery;
+        QueryBuildDataSource qbds;
+
+        inventTransQuery = new Query();
+        qbds = inventTransQuery.addDataSource(tableNum(InventTrans));
+        qbds.addRange(fieldNum(InventTrans, StatusIssue)).value(SysQuery::range(StatusIssue::Picked,StatusIssue::OnOrder));
+        qbds = qbds.addDataSource(tableNum(InventTransOrigin));
+        qbds.relations(true);
+        qbds.joinMode(JoinMode::InnerJoin);
+        qbds.addRange(fieldNum(InventTransOrigin, InventTransId)).value(_inventTransId);
+
+        inventTranslocal = InventTrans::findTransId(_inventTransId, true);
+
+        inventDimlocal   = inventTranslocal.inventDim();
+ 
+        inventDimlocal.inventBatchId    = _inventDim.inventBatchId;
+        inventDimlocal.inventSerialId   = _inventDim.inventSerialId;
+        inventDimlocal.LicensePlateId   = _inventDim.LicensePlateId;
+        inventDimlocal.wMSLocationId    = _inventDim.wMSLocationId;
+        inventDimlocal.InventLocationId = _inventDim.InventLocationId;
+        inventDimlocal.InventSiteId     = _inventDim.inventSiteId;
+        inventDimlocal                  = InventDim::findOrCreate(inventDimlocal);
+
+        inventTransWMS_pick             = InventTransWMS_Pick::newStandard(tmpInventTransWMS, inventTransQuery);
+    
+        tmpInventTransWMS.clear();
+        tmpInventTransWMS.initFromInventTrans(inventTranslocal);
+        tmpInventTransWMS.initFromInventTransOrigin(InventTransOrigin::findByInventTransId(_inventTransId));
+        tmpInventTransWMS.initFromInventDim(inventDimlocal);
+        tmpInventTransWMS.InventQty = _qty;
+
+        inventTransWMS_pick.writeTmpInventTransWMS(tmpInventTransWMS);
+       
+        inventTransWMS_pick.updateInvent();
+    }
+
+    protected InventTransferParmTable createParmTable(InventTransferId  _transferId)
+    {
+        InventTransferParmTable transferParmTable;
+
+        transferParmTable.initParmDefault();
+        transferParmTable.ParmId            = RunBaseMultiParm::getSysParmId();
+        transferParmTable.UpdateType        = InventTransferUpdateType::Shipment;
+        transferParmTable.TransferId        = _transferId;
+        transferParmTable.ShipUpdateQty     = InventTransferShipUpdateQty::All;
+        transferParmTable.TransDate         = today();
+        transferParmTable.EditLines         = NoYes::Yes;
+        transferParmTable.AutoReceiveQty    = NoYes::No;
+        transferParmTable.insert(true);
+
+        return transferParmTable;
+    }
+
+    public Notes getException()
+    {
+        SysInfologEnumerator infologEnum;
+        SysInfologMessageStruct infoLogMessage;
+        Notes errorMsg;
+
+        infologEnum = SysInfologEnumerator::newData(infolog.infologData());
+        while (infologEnum.moveNext())
+        {
+            infoLogMessage = SysInfologMessageStruct::construct(infologEnum.currentMessage());
+            errorMsg = errorMsg + infoLogMessage.message() + '\n';
+        }
+        return errorMsg;
+    }
