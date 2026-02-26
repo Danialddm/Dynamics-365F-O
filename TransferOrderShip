@@ -49,7 +49,7 @@
         tmpInventTransWMS.initFromInventTrans(inventTranslocal);
         tmpInventTransWMS.initFromInventTransOrigin(InventTransOrigin::findByInventTransId(_inventTransId));
         tmpInventTransWMS.initFromInventDim(inventDimlocal);
-        tmpInventTransWMS.InventQty = _qty;
+        tmpInventTransWMS.InventQty = -_qty;
 
         inventTransWMS_pick.writeTmpInventTransWMS(tmpInventTransWMS);
        
