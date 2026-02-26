@@ -1,0 +1,138 @@
+ public void receiveTransferOrder(InventTransferId       _orderNum)
+ {
+     InventTransferParmTable    inventTransferParmTable;
+     InventTransferParmUpdate   inventTransferParmUpdate;
+     InventTransferUpd          invTranUpd;
+     InventTransferJour         inventTransferJour;
+     InventTransferJourLine     inventTransferJourLine;
+     InventTransferLine         inventTransferLine;
+     InventDim                  inventDimJourLineShip, inventDimJourLineReceive, inventDimlocal;
+     AFZOrderPostingStaging     staging;
+
+     try
+     {
+         ttsbegin;
+         inventTransferJour = InventTransferJour::find(_orderNum,'');
+ 
+         while select inventTransferJourLine where inventTransferJourLine.TransferId == inventTransferJour.TransferId &&
+                                                   inventTransferJourLine.VoucherId  == inventTransferJour.VoucherId
+         {
+             inventTransferLine = inventTransferJourLine.inventTransferLine();
+             select firstonly staging where staging.OrderRefType == AFZOrderRefType::TransferOrder &&
+                                            staging.OrderNum == _orderNum &&
+                                            //staging.Voucher    == _voucher &&
+                                            staging.ItemId == inventTransferJourLine.ItemId;
+             
+             inventDimJourLineShip           = InventDim::find(inventTransferJourLine.InventDimId);
+             inventDimJourLineReceive        = inventTransferLine.inventDimReceive(inventTransferLine.inventTransferTable());
+             inventDimlocal.inventBatchId    = inventDimJourLineShip.InventBatchId;;
+             inventDimlocal.wMSLocationId    = staging.WMSLocationId;
+             inventDimlocal.InventLocationId = inventDimJourLineReceive.InventLocationId;
+             inventDimlocal.InventSiteId     = inventDimJourLineReceive.InventSiteId;
+             inventDimlocal                  = InventDim::findOrCreate(inventDimlocal);
+         
+             this.register(inventTransferLine.InventTransIdReceive, inventTransferJourLine.QtyShipped, inventDimlocal);
+         }
+
+         InventTransferMultiReceive inventTransferMultiReceive = InventTransferMultiReceive::construct();
+         inventTransferMultiReceive.runUpdate(this.createParmTable(inventTransferJour.TransferId));
+
+         this.updateStaging(AFZOrderRefType::TransferOrder, _orderNum, NoYes::Yes);
+         ttscommit;
+     }
+     catch (Exception::Error)
+     {
+         ttsabort;
+         this.updateStaging(AFZOrderRefType::TransferOrder, _orderNum, NoYes::No, NoYes::Yes, this.getException());
+     }
+     catch
+     {
+         ttsabort;
+         this.updateStaging(AFZOrderRefType::TransferOrder, _orderNum, NoYes::No, NoYes::Yes, this.getException());
+     }
+ }
+
+ protected void register(InventTransId _inventTransId, real _qty, InventDim _inventDim)
+ {
+     InventTransWMS_Register inventTransWMS_register;
+     TmpInventTransWMS       tmpInventTransWMS;
+     InventTrans             inventTranslocal;
+     InventDim               inventDimlocal;
+
+     inventTranslocal = InventTrans::findTransId(_inventTransId, true);
+
+     inventDimlocal   = inventTranslocal.inventDim();
+ 
+     inventDimlocal.inventBatchId    = _inventDim.inventBatchId;
+     inventDimlocal.inventSerialId   = _inventDim.inventSerialId;
+     inventDimlocal.LicensePlateId   = _inventDim.LicensePlateId;
+     inventDimlocal.wMSLocationId    = _inventDim.wMSLocationId;
+     inventDimlocal.InventLocationId = _inventDim.InventLocationId;
+     inventDimlocal.InventSiteId     = _inventDim.inventSiteId;
+     inventDimlocal                  = InventDim::findOrCreate(inventDimlocal);
+
+     inventTransWMS_register         = inventTransWMS_register::newStandard(tmpInventTransWMS);
+
+     inventTranslocal.inventDimId    = inventDimlocal.inventDimId;
+ 
+     tmpInventTransWMS.clear();
+     tmpInventTransWMS.initFromInventTrans(inventTranslocal);
+     tmpInventTransWMS.ItemId    = inventTranslocal.ItemId;
+     tmpInventTransWMS.InventQty = _qty;
+     tmpInventTransWMS.insert();
+
+     inventTransWMS_register.writeTmpInventTransWMS(tmpInventTransWMS,
+                                                    inventTranslocal,
+                                                    inventDimlocal);
+    
+     inventTransWMS_register.updateInvent(inventTranslocal);
+ }
+
+ protected InventTransferParmTable createParmTable(InventTransferId  _transferId)
+ {
+     InventTransferParmTable transferParmTable;
+
+     transferParmTable.initParmDefault();
+     transferParmTable.ParmId            = RunBaseMultiParm::getSysParmId();
+     transferParmTable.UpdateType        = InventTransferUpdateType::Receive;
+     transferParmTable.TransferId        = _transferId;
+     transferParmTable.ReceiveUpdateQty  = InventTransferReceiveUpdateQty::Shipment;
+     transferParmTable.TransDate         = today();
+     transferParmTable.EditLines         = NoYes::Yes;
+     transferParmTable.AutoReceiveQty    = NoYes::Yes;
+     //transferParmTable.VoucherShipmentId = _voucher;
+     transferParmTable.insert(true);
+
+     return transferParmTable;
+ }
+
+ public void updateStaging(AFZOrderRefType    _orderRefType,
+                          InventTransferId        _orderNum,
+                          //PackingSlipId      _packingSlipId = '',   
+                          Noyes              _processed = NoYes::Yes,
+                          NoYes              _error = NoYes::No,
+                          ErrorMsg           _errorMsg = '')
+ {
+     AFZOrderPostingStaging     staging;
+
+     update_recordset staging setting Processed = _processed, Error = _error, LogHeader = _errorMsg
+                 where   staging.OrderNum        == _orderNum &&
+                         //staging.Voucher   == _packingSlipId && 
+                         staging.Processed       == NoYes::No &&
+                         staging.OrderRefType    == _orderRefType;
+ }
+
+ public Notes getException()
+ {
+     SysInfologEnumerator infologEnum;
+     SysInfologMessageStruct infoLogMessage;
+     Notes errorMsg;
+
+     infologEnum = SysInfologEnumerator::newData(infolog.infologData());
+     while (infologEnum.moveNext())
+     {
+         infoLogMessage = SysInfologMessageStruct::construct(infologEnum.currentMessage());
+         errorMsg = errorMsg + infoLogMessage.message() + '\n';
+     }
+     return errorMsg;
+ }
