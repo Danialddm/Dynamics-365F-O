@@ -1,0 +1,31 @@
+        private void canEditBtn()
+        {
+            AFZBankLGGuaranteeRequest tableBuffer = this.cursor();
+            DictTable               dictTable = new DictTable(tableBuffer.TableId);
+
+            if (tableBuffer.Status != AFZLGStatus::Draft)
+            {          
+                for (int i = 1; i <= dictTable.fieldCnt(); i++)
+                {
+                    fieldId fid = dictTable.fieldCnt2Id(i);
+                    DictField dictField = dictTable.fieldObject(fid);
+                    if(dictField.isSystem())
+                    {
+                        continue;
+                    }
+
+                    if (fid == fieldNum(AFZBankLGGuaranteeRequest, BankRefNumber))
+                    {
+                        AFZBankLGGuaranteeRequest_DS.object(fid).allowEdit(true);
+                    }
+                    else
+                    {
+                        AFZBankLGGuaranteeRequest_DS.object(fid).allowEdit(false);
+                    }
+                }
+            }
+            else
+            {
+                this.allowEdit(true);
+            }
+        }
