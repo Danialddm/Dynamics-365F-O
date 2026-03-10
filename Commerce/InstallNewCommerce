@@ -1,3 +1,5 @@
+https://www.youtube.com/watch?v=ZLhiQ8yMCz8
+--------------------------------------------------
 for every stand alone VM, we need to install dev sealed CSU, it will create sites on the IIS. to create that just run the following 
 powershell in a new raw vm: 
 - this needs a full access user into the azure entra admin center to create new apps.
