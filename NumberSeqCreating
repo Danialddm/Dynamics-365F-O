@@ -1,0 +1,47 @@
+internal final class AFZLGRequestNumberSeq extends NumberSeqApplicationModule
+{
+    [SubscribesTo(classstr(NumberSeqGlobal),delegateStr(NumberSeqGlobal,buildModulesMapDelegate))]
+
+    static void buildModulesMapSubscriber(Map  numberSeqModuleNamesMap)
+    {
+        NumberSeqGlobal::addModuleToMap(classNum(AFZLGRequestNumberSeq),numberSeqModuleNamesMap);
+    }
+
+    public NumberSeqModule  numberSeqModule()
+    {
+        return NumberSeqModule::Bank;
+    }
+
+    protected void loadModule()
+    {
+        //next loadModule();
+        NumberSeqDatatype datatype = NumberSeqDatatype::construct();
+        datatype.parmDatatypeId(extendedTypeNum(AFZLGRequest));
+        datatype.parmReferenceHelp(literalStr("LG number sequence"));
+        datatype.parmWizardIsContinuous(false);
+        datatype.parmWizardIsManual(NoYes::No);
+        datatype.parmWizardFetchAheadQty(10);
+        datatype.parmWizardIsChangeDownAllowed(NoYes::No);
+        datatype.parmWizardIsChangeUpAllowed(NoYes::No);
+        datatype.parmWizardHighest(999999);
+        datatype.parmSortField(1000);
+        datatype.addParameterType(NumberSeqParameterType::DataArea, true, false);
+        this.create(datatype);
+    }
+
+}
+
+////
+Run the following job after the above:
+internal final class AFZLGNumSeqLoad
+{
+    public static void main(Args _args)
+    {
+        AFZLGRequestNumberSeq   numberSeq = new AFZLGRequestNumberSeq();
+        numberSeq.load(); 
+        //ext
+        AFZLGRequestNumberSeq_Ext   numberSeqExt = new AFZLGRequestNumberSeq_Ext();
+        numberSeqExt.load();
+    }
+
+}
