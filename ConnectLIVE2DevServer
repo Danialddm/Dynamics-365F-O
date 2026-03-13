@@ -4,3 +4,14 @@ ref: https://dynamics365docs.com/d365-enable-uat-database-over-development-machi
 2. enable access for public IP
 3. change web.config from Aosservice-->webroot
 4. restart the IIS
+
+
+---
+server name: spartan-srv-uae-d365opsuae-4a72fab837c4.database.windows.net
+db name: db_d365opsuae_rhcerpuat_ax_20251112_01232709_c0e9
+user: JIT-erp-adm-gps0c6s0
+sqlpwd: 4L87_a1CBnAAQtXYkZa0FHdT6ab938s1NXs8FPNMfysagTbpO9qX-kwa8bCN23LwKRpWl4QMqHnzVadAVGrVo4Q4W9
+-----
+    <add key="DataAccess.Database" value="AxDB" />
+    <add key="DataAccess.DbServer" value="sng-erp-dev1-1" />
+    <add key="DataAccess.SqlUser" value="axdbadmin" />
