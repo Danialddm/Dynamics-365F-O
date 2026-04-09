@@ -19,3 +19,22 @@
             }
             return dimensionValue;
         }
+////////////////////////////////////////////////or
+static void Job181(Args _args)
+{
+    SalesTable           salesTable;
+    DefaultDimensionView defDimView;
+    OMOperatingUnit      operationUnit;
+ 
+    select firstOnly salesTable
+        where salesTable.DefaultDimension;
+ 
+    select defDimView
+        where defDimView.DefaultDimension == salesTable.DefaultDimension
+           && defDimView.Name             == "Department"
+    join operationUnit
+        where operationUnit.RecId                 == defDimView.EntityInstance
+           && operationUnit.omOperatingUnitType   == OMOperatingUnitType::OMDepartment;
+           
+    info(operationUnit.Name);
+}
