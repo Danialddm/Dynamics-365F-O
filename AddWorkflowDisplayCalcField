@@ -1,0 +1,57 @@
+[ExtensionOf(classStr(PurchTableDocument))]//for po workflow to add some new fields on  the placeholder or conditions
+internal final class AFZPurchTableDocument_Extension
+{
+    public PurchReqName parmAFZPurchReqName(CompanyId _companyId, TableId _tableId, RecId _recId)
+    {
+        PurchTable purchTable = PurchTable::findRecId(_recId);
+        PurchLine purchline = PurchLine::find(purchTable.PurchId, 1);
+        PurchReqTable reqTable = PurchReqTable::findPurchReqId(purchLine.PurchReqId);
+
+        if(purchTable)
+        {
+            return reqTable.PurchReqName;
+        }
+        return '';
+    }
+
+    public DirPersonNickName parmAFZSourcingField(CompanyId _companyId, TableId _tableId, RecId _recId)
+    {
+        PurchTable purchTable = PurchTable::findRecId(_recId);
+        PurchLine purchline = PurchLine::find(purchTable.PurchId, 1);
+        PurchReqTable reqTable = PurchReqTable::findPurchReqId(purchLine.PurchReqId);
+
+        if(purchTable)
+        {
+            return enum2Str(reqTable.AMY_SourcingField);
+        }
+        return '';
+    }
+
+    public OMDepartmentName parmAFZDepartment(CompanyId _companyId, TableId _tableId, RecId _recId)
+    {
+        PurchTable purchTable = PurchTable::findRecId(_recId);
+        PurchLine purchline = PurchLine::find(purchTable.PurchId, 1);
+        PurchReqTable reqTable = PurchReqTable::findPurchReqId(purchLine.PurchReqId);
+        DirPerson   person;
+        if(purchTable)
+        {
+            HcmWorker   worker = HcmWorker::find(purchTable.Requester);
+            return HcmWorkerHelper::getDepartments(worker.RecId).Name;
+        }
+        return '';
+    }
+
+    public DataAreaName parmAFZDataAreaName(CompanyId _companyId, TableId _tableId, RecId _recId)
+    {
+        PurchTable purchTable = PurchTable::findRecId(_recId);
+        PurchLine purchline = PurchLine::find(purchTable.PurchId, 1);
+        PurchReqTable reqTable = PurchReqTable::findPurchReqId(purchLine.PurchReqId);
+
+        if(purchTable)
+        {
+            return purchTable.DataAreaId + "-" + CompanyInfo::findDataArea(purchTable.DataAreaId).name();
+        }
+        return '';
+    }
+
+}
