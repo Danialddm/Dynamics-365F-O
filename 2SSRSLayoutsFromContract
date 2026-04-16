@@ -1,0 +1,46 @@
+[ExtensionOf(classStr(smmReportsController))]
+final class smmReportsController_SGReport_Extension
+{
+    protected void preRunModifyContract()
+    {
+        next preRunModifyContract();
+
+        if (this.parmReportName() == ssrsReportStr(AFZsmmSalesMarginReport, AFZReport))
+        {
+            smmSalesCustItemStatisticsContract contract =
+                this.parmReportContract().parmRdpContract() as smmSalesCustItemStatisticsContract;
+
+            if (contract)
+            {
+                if (!contract)
+                {
+                    return;
+                }
+                switch (contract.parmEntity())
+                {
+                    case ItemCust::Cust:
+                        this.parmReportContract().parmReportName(ssrsReportStr(AFZsmmSalesMarginReport, AFZReport));             
+                        break;
+
+                    case ItemCust::Item:
+                        this.parmReportContract().parmReportName(ssrsReportStr(AFZsmmSalesMarginReport, AFZReportItem));
+                        break;
+                }
+            }
+        }
+    }
+
+    public static str getReportName(Args _args)
+    {
+        str reportName;
+        reportName = next getReportName(_args);
+
+        if (_args.menuItemName() == menuitemOutputStr(AFZsmmSalesMarginReport))
+        {
+            reportName = ssrsReportStr(AFZsmmSalesMarginReport, AFZReport);
+        }
+
+        return reportName;
+    }
+
+}
