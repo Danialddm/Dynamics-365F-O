@@ -1,0 +1,40 @@
+AllowEdit ds while its not editable from the prop
+/////////////////////////////////////////////////////
+[ExtensionOf(formStr(ProcCategoryHierarchyManagement))]
+internal final class AFZProcCategoryhierarchyMgmt_FrmInit_Extension
+{
+    public void init()
+    {
+        next init();
+        EcoResCategory_DS.allowEdit(true);
+
+        this.AFZallowEditFieldsOnFormDS(EcoResCategory_DS, false);
+        EcoResCategory_DS.object(fieldNum(EcoResCategory, AFZCurrencyThreshold)).allowEdit(true);
+        EcoResCategory_DS.object(fieldNum(EcoResCategory, AFZPoAmountThreshold)).allowEdit(true);
+        EcoResCategory_DS.object(fieldNum(EcoResCategory, AFZPoLineThreshold)).allowEdit(true);
+    }
+
+    public void AFZallowEditFieldsOnFormDS(FormDataSource _dataSource, boolean _allowEdit)
+    {
+        var dictTable = new DictTable(_dataSource.table());
+        int         cx, idx;
+
+        for (cx = 1; cx <= dictTable.fieldCnt(); cx ++)
+        {
+            DictField dictField = dictTable.fieldObject(dictTable.fieldCnt2Id(cx));
+
+            if (! dictField.isSystem())
+            {
+                for (idx = 1; idx <= dictField.arraySize(); idx++)
+                {
+                    FormDataObject dataObject = _dataSource.object(fieldId2Ext(dictField.id(), idx));
+                    if (dataObject)
+                    {
+                        dataObject.allowEdit(_allowEdit);
+                    }
+                }
+            }
+        }
+    }
+
+}
