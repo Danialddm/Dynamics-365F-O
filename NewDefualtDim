@@ -1,0 +1,59 @@
+internal final class AFZBudgetTransactionLine_EHNDL
+{
+    [FormDataSourceEventHandler(formDataSourceStr(BudgetTransaction, BudgetTransactionLine), FormDataSourceEventType::Created)]
+    public static void BudgetTransactionLine_OnCreated(FormDataSource sender, FormDataSourceEventArgs e)
+    {
+        BudgetTransactionLine     budgetTransactionLine   = sender.cursor();
+        //BudgetTransactionHeader   budgetTransactionHeader = BudgetTransactionHeader::find(budgetTransactionLine.BudgetTransactionHeader);
+        DirPerson        person;
+        HcmWorker        worker;
+        HcmEmployment    employment;
+        DefaultDimensionView defaultDimensionView;
+        DimensionDefault newDefaultDim;
+        container conValue, conAttr;
+        DimensionAttributeValueSetStorage   valueSetStorage = new DimensionAttributeValueSetStorage();
+        int                     i;
+        DimensionAttribute      dimensionAttribute;
+        DimensionAttributeValue dimensionAttributeValue;
+        str                     dimValue;
+
+
+        select firstonly RecId from person
+            where person.Name == HcmWorker::findByPerson(DirPersonuser::find(curUserId()).PersonParty).name()
+                join RecId from worker where worker.Person == person.RecId
+                    join DefaultDimension from employment
+                        where employment.Worker == worker.RecId
+                        && employment.LegalEntity == CompanyInfo::find().RecId;
+
+        if (person)
+        {
+            while select defaultDimensionView where defaultDimensionView.DefaultDimension == employment.DefaultDimension
+            {
+                if(defaultDimensionView.Name != "Employee")
+                {
+                    conAttr += [[defaultDimensionView.Name]];
+                    conValue += [[defaultDimensionView.DisplayValue]];
+                }
+            }
+            for (i = 1; i <= conLen(conAttr); i++)
+            {
+                dimensionAttribute = dimensionAttribute::findByName(conPeek(conAttr,i));
+                if (dimensionAttribute.RecId == 0)
+                {
+                    continue;
+                }
+                dimValue = conPeek(conValue,i);
+                if (dimValue != "")
+                {
+                    dimensionAttributeValue = dimensionAttributeValue::findByDimensionAttributeAndValue(dimensionAttribute,dimValue,false,true);
+                    valueSetStorage.addItem(dimensionAttributeValue);
+                }
+            }
+    
+            newDefaultDim = valueSetStorage.save();
+            budgetTransactionLine.AFZDefaultDimension = newDefaultDim;
+        }
+        
+    }
+
+}
