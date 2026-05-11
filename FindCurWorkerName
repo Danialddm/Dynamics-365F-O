@@ -1,0 +1,1 @@
+Name = HcmWorker::findByPerson(DirPersonuser::find(curUserId()).PersonParty).name();
