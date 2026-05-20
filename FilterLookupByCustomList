@@ -1,0 +1,47 @@
+[Form]
+public class AFZReleaseAgreementLE extends FormRun
+{
+    [Control("ReferenceGroup")]
+    class AFZAgrrementLegalEntity_BuyingLegalEntity
+    {
+        public void lookup()
+        {
+            //super();
+            Query                   query = new Query();
+            QueryBuildDataSource     qbds;
+            SysReferenceTableLookup  sysRefLookup;
+            FormDataSource ds = element.dataSource(formDataSourceStr(AFZReleaseAgreementLE, AFZAgrrementLegalEntity));
+            AFZAgrrementLegalEntity agreeLE = ds.cursor();
+            AFZPurchAgreementLine agreementLine = AFZPurchAgreementLine::find(agreeLE.RefRecAgreementLine);
+            AFZPurchAgreementHeader agreementHeader = AFZPurchAgreementHeader::findRecId(agreementLine.Agreement);
+            VendTable vendTable;
+            str                         allowedCompanies = '';
+
+            while select crosscompany vendTable where vendTable.AccountNum == agreementHeader.VendAccount
+            {
+                if (allowedCompanies)
+                {
+                    allowedCompanies += ',';
+                }
+
+                allowedCompanies += vendTable.DataAreaId;
+            }
+            if(allowedCompanies == '')
+            {
+                throw error("Release is not allowed.");
+            }
+            qbds = query.addDataSource(tableNum(CompanyInfo));
+
+            qbds.addRange(fieldNum(CompanyInfo, DataArea)).value(allowedCompanies);
+
+            // Initialize lookup
+            sysRefLookup = SysReferenceTableLookup::newParameters(tableNum(CompanyInfo), this);
+            sysRefLookup.addLookupfield(fieldNum(CompanyInfo, DataArea));
+            sysRefLookup.addLookupfield(fieldNum(CompanyInfo, Name));
+            sysRefLookup.parmQuery(query);
+            sysRefLookup.performFormLookup();
+        }
+
+    }
+
+}
