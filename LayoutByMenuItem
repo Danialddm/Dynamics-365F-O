@@ -1,0 +1,70 @@
+    public void ProcessReport()
+    {        
+        aFZCurrencyRevaluationTmp.clear();
+        AFZCurrencyRevaluationContract contract = this.parmDataContract() as AFZCurrencyRevaluationContract;
+        switch (contract.parmMenuItemName())
+        {
+            case menuitemOutputStr(AFZCurrencyRevaluationVend):
+                this.vendorDP();
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationCust):
+                this.customerDP();
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationGL):
+                this.GeneralLedgerDP();
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationBank):
+                this.BankDP();
+                break;
+        }
+    }
+-------
+class AFZCurrencyRevaluationController extends SrsReportRunController
+{
+    public static void main(Args _args)
+    {
+        AFZCurrencyRevaluationController controller = new AFZCurrencyRevaluationController();
+
+        controller.parmReportName(AFZCurrencyRevaluationController::getReportName(_args));
+        controller.parmShowDialog(true);
+        controller.parmArgs(_args);
+        controller.startOperation();         
+    }
+
+    protected void preRunModifyContract()
+    {
+        super();
+
+        AFZCurrencyRevaluationContract contract =
+                this.parmReportContract().parmRdpContract() as AFZCurrencyRevaluationContract;
+
+        if (contract)
+        {
+            contract.parmMenuItemName(this.parmArgs().menuItemName());
+        }
+    }
+
+    public static str getReportName(Args _args)
+    {
+        str reportName;
+
+        switch (_args.menuItemName())
+        {
+            case menuitemOutputStr(AFZCurrencyRevaluationVend):
+                reportName = ssrsReportStr(AFZCurrencyRevaluationReport, CurRevVendor);
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationCust):
+                reportName = ssrsReportStr(AFZCurrencyRevaluationReport, CurRevCustomer);
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationGL):
+                reportName = ssrsReportStr(AFZCurrencyRevaluationReport, CurRevGeneralLedger);
+                break;
+            case menuitemOutputStr(AFZCurrencyRevaluationBank):
+                reportName = ssrsReportStr(AFZCurrencyRevaluationReport, CurRevBank);
+                break;
+        }
+
+        return reportName;
+    }
+
+}
