@@ -1,0 +1,199 @@
+internal final class AFZSendVendorStatementEmailJob extends SysOperationServiceBase
+{
+    public void process()
+    {
+        date executionDate = systemDateGet();
+        executionDate = mkDate(1, mthOfYr(executionDate), year(executionDate));
+
+        List                lineList = new List(Types::Record);
+        Email   fromEmail;
+        Email toEmail;
+
+        System.IO.MemoryStream stream;
+        fromEmail = SysEmailParameters::find().SMTPUserName;
+        VendTable vendTable;
+        WorkflowWorkItemTable     workListItem, lineTable, workflowWorkItemTable;
+        int cnt =1;
+        PurchLine purchLine;
+
+        try
+        {
+            while select vendTable order by vendTable.AccountNum asc
+                where vendTable.AFZSendVendStatement == NoYes::Yes
+            {
+                if(vendTable.email())
+                {
+                    toEmail = vendTable.email();
+
+                    SysMailerMessageBuilder messageBuilder = new SysMailerMessageBuilder();
+
+                    str htmlBody, sbj;
+
+                    //htmlBody = "<html><body>";
+
+                    SrsReportRunController                      controller = new SrsReportRunController();
+
+                    VendAccountStatementIntContract                      contract = new VendAccountStatementIntContract();
+
+                    SRSPrintDestinationSettings                 settings;
+
+                    Array                                       arrayFiles;
+
+                    System.Byte[]                               reportBytes = new System.Byte[0]();
+
+                    SRSProxy                                    srsProxy;
+
+                    SRSReportRunService                         srsReportRunService = new SrsReportRunService();
+
+                    Microsoft.Dynamics.AX.Framework.Reporting.Shared.ReportingService.ParameterValue[]  parameterValueArray;
+
+                    Map                                         reportParametersMap;
+
+                    SRSReportExecutionInfo executionInfo = new SRSReportExecutionInfo();
+
+                    Args                                    args;
+
+                    args = new Args();
+
+                    controller.parmArgs(args);
+
+                    controller.parmReportName(ssrsReportStr(VendAccountStatementInt, Report));
+
+                    controller.parmExecutionMode(SysOperationExecutionMode::Synchronous);
+
+                    controller.parmShowDialog(false);
+
+                    controller.parmLoadFromSysLastValue(false);
+
+                    contract.parmFromDate(executionDate);
+                    contract.parmToDate(systemDateGet());
+                    contract.parmNewPage(true);
+
+                    controller.parmReportContract().parmRdpContract(contract);
+
+                    settings = controller.parmReportContract().parmPrintSettings();
+
+                    settings.printMediumType(SRSPrintMediumType::File);
+
+                    settings.fileFormat(SRSReportFileFormat::PDF);
+
+                    settings.overwriteFile(true);
+
+                    settings.fileName("VendorStatement.pdf");
+
+                    controller.startOperation();
+                
+                    controller.parmReportContract().parmReportServerConfig(SRSConfiguration::getDefaultServerConfiguration());
+
+                    controller.parmReportContract().parmReportExecutionInfo(executionInfo);
+
+                    srsReportRunService.getReportDataContract(controller.parmreportcontract().parmReportName());
+
+                    srsReportRunService.preRunReport(controller.parmreportcontract());
+
+                    reportParametersMap = srsReportRunService.createParamMapFromContract(controller.parmReportContract());
+
+                    parameterValueArray = SrsReportRunUtil::getParameterValueArray(reportParametersMap);
+
+                    srsProxy = SRSProxy::constructWithConfiguration(controller.parmReportContract().parmReportServerConfig());
+
+                    reportBytes = srsproxy.renderReportToByteArray(controller.parmreportcontract().parmreportpath(),
+
+                                                      parameterValueArray,
+
+                                                      settings.fileFormat(),
+
+                                                      settings.deviceinfo());
+                    //
+                    str body, subject;
+                    [body, subject] = this.emailMsg();
+                    stream = new System.IO.MemoryStream(reportBytes);
+
+                    messageBuilder.setBody(htmlBody, true);
+                    messageBuilder.setSubject("Vendor Statement Report");
+                    messageBuilder.addAttachment(stream, "VendorStatement.pdf");
+
+                    messageBuilder.addTo(toEmail);
+                    messageBuilder.setFrom(fromEmail);
+                
+                    SysEmailParameters emailParams = SysEmailParameters::find();
+                    SysIMailer mailer = SysMailerFactory::getMailer(emailParams.MailerNonInteractive);
+
+                    if (!mailer)
+                    {
+                        cnt =1;
+                        error("No mailer found for the configured SMTP server.");
+                        return;
+                    }
+                    SysIMailerNonInteractive nonInteractiveMailer = mailer as SysIMailerNonInteractive;
+                    if (!nonInteractiveMailer)
+                    {
+                        cnt =1;
+                        error("Configured mailer does not support non-interactive email sending.");
+                        return;
+                    }
+                
+                    boolean messageSent = SysMailerFactory::sendNonInteractive(messageBuilder.getMessage());
+
+                    if (messageSent)
+                    {
+                        toEmail ="";
+                        info("Email sent successfully!");
+                    }
+                    else
+                    {
+                        error("Failed to send email via SMTP server.");
+                    }
+                }//if
+            }//while
+        }
+        catch (Exception::Error)
+        {
+            error(strFmt("Error sending email to vendor %1 (%2)",
+                vendTable.AccountNum,
+                    toEmail));
+        }
+        catch
+        {
+            error(strFmt("Unexpected error for vendor %1", vendTable.AccountNum));
+        }
+    }
+
+    public Map parseEmailText()
+    {
+        Map placeholderMap = new Map(Types::String, Types::String);
+        placeholderMap.insert("test", "233333");
+        //placeholderMap.insert("Name", worker.name());
+        //placeholderMap.insert("PeriodStartDate", strFmt("%1", payrollPeriodLine.PeriodStartDate));
+        //placeholderMap.insert("PeriodEndDate", strFmt("%1", payrollPeriodLine.PeriodEndDate));
+        //placeholderMap.insert("PeriodMonth", mthName(mthOfYr(payrollPeriodLine.PeriodEndDate)));
+        //placeholderMap.insert("PeriodYear", int2Str(year(payrollPeriodLine.PeriodEndDate)));
+        return placeholderMap;
+    }
+
+    public container emailMsg()
+    {
+        str messageBody, subject;
+        SysEmailTable   sysEmailTable = SysEmailTable::find("");
+        if(sysEmailTable)
+        {
+            Map placeholderMap = this.parseEmailText();
+            SysEmailMessageTable sysEmailMessageTable = SysEmailMessageTable::find(sysEmailTable.EmailId,
+                    sysEmailTable.DefaultLanguage);
+            messageBody = sysEmailMessageTable.Mail;
+            subject = sysEmailMessageTable.Subject;
+            messageBody = SysEmailMessage::stringExpand(messageBody, placeholderMap);
+            subject     = SysEmailMessage::stringExpand(subject, placeholderMap);
+        }
+        else
+        {
+            messageBody = strFmt(@"Hi %1, </br>
+                                            Please find your enclosed attachment for salary.</br>Thanks,</br>HR", "ddmm");
+            subject= "ddm subj";//strFmt("Payslip for %1 (%2,%3)", worker.name(), mthName(mthOfYr(payrollPeriodLine.PeriodEndDate)),
+              //          year(payrollPeriodLine.PeriodEndDate));
+        }
+        return [messageBody, subject];
+    }
+
+}
+///////////////////////////////
