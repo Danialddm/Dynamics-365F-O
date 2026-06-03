@@ -1,0 +1,36 @@
+internal final class AFZProdBarcodeLabelController extends SrsReportRunController
+{
+    public static AFZProdBarcodeLabelController construct()
+    {
+        return new AFZProdBarcodeLabelController();
+    }
+
+    public static void main(Args _args)
+    {
+        AFZProdBarcodeLabelController ReportController = new AFZProdBarcodeLabelController();
+        ReportController.parmReportName(ssrsReportStr(AFZRFQCompSheetReport, RFQCompSheet));
+        ReportController.parmArgs(_args);
+        ReportController.parmShowDialog(false);
+        ReportController.startOperation();
+    }
+
+    protected void prePromptModifyContract()
+    {
+        prodTable prodTable;
+        FormDataSource fds;
+        RecId          prodTableRecId;
+        AFZProdBarcodeLabelContract  contract = new AFZProdBarcodeLabelContract();
+        contract  = this.parmReportContract().parmRdpContract() as AFZProdBarcodeLabelContract;
+        fds = FormDataUtil::getFormDataSource(this.parmArgs().record());
+        if(this.parmArgs() && this.parmArgs().dataset() == tableNum(ProdTable))
+        {
+            prodTable = this.parmArgs().record() as ProdTable;
+            prodTableRecId = prodTable.RecId;
+        }
+        if(contract)
+        {
+            contract.prodTableRecId(prodTableRecId);
+        }
+        this.parmShowDialog(false);
+    }
+}
