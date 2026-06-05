@@ -1,0 +1,46 @@
+internal final class AFZBulkUpdateReqShipDate
+{
+    public static void main(Args _args)
+    {
+        //info("AFZBulkUpdateReqShipDate main() executed.");
+    }
+
+    [FormControlEventHandler(formControlStr(SalesLineOpenOrder, AFZBulkUpdateReqShipDate), FormControlEventType::Clicked)]
+    public static void AFZBulkUpdateReqShipDate_OnClicked(FormControl sender, FormControlEventArgs e)
+    {
+        AFZBulkUpdateReqShipDateContract contract = new AFZBulkUpdateReqShipDateContract();
+        Dialog dialog = new Dialog("Bulk Update Requested Ship Date");
+        DialogField dfDate;
+        dfDate = dialog.addFieldValue(extendedTypeStr(TransDate), contract.parmReqShipDate(), "Requested Ship Date");
+
+        if (dialog.run())
+        {
+            contract.parmReqShipDate(dfDate.value());
+            FormRun formRun = sender.formRun();
+            FormDataSource SalesLine_ds = formRun.dataSource(formDataSourceStr(SalesLineOpenOrder,SalesLine ));
+
+            MultiSelectionHelper helper = MultiSelectionHelper::construct();
+            helper.parmDatasource(SalesLine_ds);
+
+            SalesLine salesLine = helper.getFirst();
+            int cnt =0;
+            ttsbegin;
+
+            while (salesLine.RecId)
+            {
+                salesLine.selectForUpdate(true);
+                salesLine.ShippingDateRequested = contract.parmReqShipDate(dfDate.value());
+                salesLine.update();
+                cnt++;
+    
+                salesLine = helper.getNext();
+            }
+            ttscommit;
+
+            SalesLine_ds.research(true);
+            SalesLine_ds.refresh();
+            Info(strFmt("%1 record(s) have been updated successfully.", cnt));
+        }
+    }
+
+}
