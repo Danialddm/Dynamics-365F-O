@@ -1,0 +1,24 @@
+    // BusinessUnit
+    if (BusinessUnit.text() != '')
+    {
+        DefaultDimensionView df;
+        str rangeString = '';
+        boolean firstValue = true;
+        RecId recId;
+
+        while select df where df.Name == 'D01_BusinessUnit'
+            && df.DisplayValue == BusinessUnit.text()
+        {
+            recId = df.DefaultDimension;
+            if (!firstValue)
+            {
+                rangeString += ',';
+            }
+
+            rangeString += int642Str(recId);
+            firstValue = false;
+        }
+        
+        QueryBuildRange qbrBU = qbds.addRange(fieldNum(SalesLine, DefaultDimension));
+        qbrBU.value(rangeString);
+    }
