@@ -1,0 +1,6 @@
+Create a new method at ds level
+
+        public display Name itemName(SalesLine _salesLine)
+        {
+            return _salesLine.itemName();
+        }
