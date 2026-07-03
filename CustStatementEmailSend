@@ -1,0 +1,328 @@
+//***there is a difference with normal email attachment sending, and that is inside of 
+controller.startoperation() call the srproxy by itself.
+only need to capture the value with a new class:
+internal final class AFZReportBytesStorage
+{
+    public static System.Byte[] lastBytes;
+}
+------------------------------------------------
+[ExtensionOf(classStr(SRSProxy))]
+internal final class AFZSRSProxy_Extension
+{
+    public System.Byte[] renderReportToByteArray(
+        str _reportPath,
+        Microsoft.Dynamics.AX.Framework.Reporting.Shared.ReportingService.ParameterValue[] _parameterValueArray,
+        SRSReportFileFormat _fileFormat,
+        str _deviceInfo,
+        str _executionID)
+    {
+        System.Byte[] reportBytes = next renderReportToByteArray(
+            _reportPath,
+            _parameterValueArray,
+            _fileFormat,
+            _deviceInfo,
+            _executionID);
+        if(_reportPath == "/Dynamics/AFZCustAccountStatementExt.Report")//only for this report
+        {
+            AFZReportBytesStorage::lastBytes = reportBytes;
+        }
+        return reportBytes;
+    }
+
+}
+
+#########################################################################################
+
+internal final class AFZSendCustStatementEmailJob extends SysOperationServiceBase
+{
+    SRSPrintMediumType          printMedium;
+    LanguageId                  languageId = "en-us";
+    Filename _fileName = "CustomerStatement.pdf";
+    private void insertLog(str _accountNum, str _message, str _type)
+    {
+        AFZCustStatementLog log;
+        log.AccountNum      = _accountNum;
+        log.LogMessage      = _message;
+        log.LogType         = _type;
+        log.insert();
+    }
+
+    public void Process()
+    {
+        date executionDate = systemDateGet();
+        executionDate = mkDate(1, mthOfYr(executionDate), year(executionDate));
+
+        Email fromEmail;
+        Email toEmail;
+           
+        CustTable custTable;
+        int successCount = 0;
+        int failCount = 0;
+
+        fromEmail = SysEmailParameters::find().SMTPUserName;
+
+        try
+        {
+            while select custTable order by custTable.AccountNum asc
+                where custTable.AFZCustStatement == NoYes::Yes
+            {
+                if(custTable.email())
+                {
+                    toEmail = custTable.email();
+
+                    try
+                    {
+                        boolean result = this.generateAndSendStatement(custTable, fromEmail, toEmail, executionDate);
+                        
+                        if (result)
+                        {
+                            successCount++;
+                            str msg = strFmt("Email sent successfully to %1 (%2)", custTable.AccountNum, toEmail);
+                            info(msg);
+                            this.insertLog(custTable.AccountNum, msg, "Success");
+                        }
+                        else
+                        {
+                            failCount++;
+                            str msg = strFmt("Failed to send email to %1", custTable.AccountNum);
+                            error(msg);
+                            this.insertLog(custTable.AccountNum, msg, "Error");
+                        }
+                    }
+                    catch (Exception::Error)
+                    {
+                        failCount++;
+                        str msg = strFmt("Error processing customer %1: %2", custTable.AccountNum, this.getLastErrorMessage());
+                        error(msg);
+                        this.insertLog(custTable.AccountNum, msg, "Error");
+                    }
+                }
+                else
+                {
+                    str msg = strFmt("Customer %1 has no email address", custTable.AccountNum);
+                    warning(msg);
+                    this.insertLog(custTable.AccountNum, msg, "Warning");
+                }
+            }
+            
+            str summaryMsg = strFmt("Batch completed: %1 sent successfully, %2 failed", successCount, failCount);
+            info(summaryMsg);
+            this.insertLog("", summaryMsg, "Info");
+        }
+        catch (Exception::Error)
+        {
+            str msg = strFmt("Batch error: %1", this.getLastErrorMessage());
+            error(msg);
+            this.insertLog("", msg, "Error");
+        }
+        catch
+        {
+            str msg = "Unexpected batch error";
+            error(msg);
+            this.insertLog("", msg, "Error");
+        }
+    }
+
+    private boolean generateAndSendStatement(CustTable _custTable, Email _fromEmail, Email _toEmail, date _executionDate)
+    {
+        boolean result = false;
+        System.Byte[] reportBytes;
+        System.IO.MemoryStream stream;
+        System.IO.MemoryStream fileStream;
+        SysMailerMessageBuilder messageBuilder = new SysMailerMessageBuilder();
+        
+        try
+        {
+            // Generate the report
+            reportBytes = this.generateReport(_custTable, _executionDate);
+            
+            if (reportBytes == null || reportBytes.Length == 0)
+            {
+                str msg = "Report generation failed - no data returned";
+                error(msg);
+                this.insertLog(_custTable.AccountNum, msg, "Error");
+                return false;
+            }
+            
+            stream = new System.IO.MemoryStream(reportBytes);
+            stream.Position = 0;
+            fileStream = stream;
+
+            str htmlBody = strFmt("Dear Customer,\n\nPlease find attached your customer statement for account %1.\n\nThis statement includes all transactions up to %2.\n\nBest regards,\n%3\nAccounts Receivable Department",
+                _custTable.AccountNum,
+                date2Str(systemDateGet(), 321,   DateDay::Digits2,
+                DateSeparator::Slash, // separator1
+                                                 DateMonth::Digits2,
+                DateSeparator::Slash, // separator2
+                DateYear::Digits4),
+                CompanyInfo::find().Name);
+            
+            messageBuilder.setBody(htmlBody, false);
+            messageBuilder.setSubject(strFmt("Customer Statement - %1 - %2",
+                _custTable.AccountNum,
+                date2Str(systemDateGet(), 321, DateDay::Digits2, DateSeparator::Slash, DateMonth::Digits2, DateSeparator::Slash, DateYear::Digits4)
+                ));
+            messageBuilder.addAttachment(fileStream, strFmt("CustomerStatement_%1.pdf", _custTable.AccountNum));
+            messageBuilder.addTo(_toEmail);
+            messageBuilder.setFrom(_fromEmail);
+            
+            // Send email
+            result = SysMailerFactory::sendNonInteractive(messageBuilder.getMessage());
+            
+            if (!result)
+            {
+                str msg = "Email sending failed";
+                error(msg);
+                this.insertLog(_custTable.AccountNum, msg, "Error");
+            }
+            else
+            {
+                str msg = strFmt("Email successfully sent to %1", _custTable.AccountNum);
+                this.insertLog(_custTable.AccountNum, msg, "Success");
+            }
+        }
+        catch (Exception::Error)
+        {
+            str msg = strFmt("Error in generateAndSendStatement: %1", this.getLastErrorMessage());
+            this.insertLog(_custTable.AccountNum, msg, "Error");
+            throw error(msg);
+        }
+        finally
+        {
+            if (stream != null)
+            {
+                stream.Close();
+                stream.Dispose();
+            }
+        }
+        
+        return result;
+    }
+
+    public SRSPrintMediumType parmPrintMedium(SRSPrintMediumType _printMedium = printMedium)
+    {
+        printMedium = _printMedium;
+        return printMedium;
+    }
+
+    private System.Byte[] generateReport(CustTable _custTable, date _executionDate)
+    {
+        System.Byte[] reportBytes = new System.Byte[0]();
+        CustAccountStatementExtController controller;
+        SRSPrintDestinationSettings settings;
+        Args args;                 
+        SRSReportExecutionInfo executionInfo;
+        Query query;
+        CustVendAgingBucketLookUp agingDefinition;
+        SrsReportRunService srsReportRunService = new SrsReportRunService();
+        SRSCatalogItemName reportDesignLocal;
+
+        try
+        {
+            controller = new CustAccountStatementExtController();
+
+            args = new Args();
+            args.record(_custTable);
+            args.parm(_custTable.AccountNum);
+
+            controller.parmArgs(args);
+            controller.parmReportName(PrintMgmtDocType::construct(PrintMgmtDocumentType::CustAccountStatement).getDefaultReportFormat());
+            controller.parmExecutionMode(SysOperationExecutionMode::Synchronous);
+            controller.parmShowDialog(false);
+            controller.parmLoadFromSysLastValue(false);
+
+            CustAccountStatementExtContract contract = controller.parmReportContract().parmRdpContract() as CustAccountStatementExtContract;
+            if (contract == null)
+            {
+                str msg = "Failed to initialize report contract";
+                error(msg);
+                this.insertLog(_custTable.AccountNum, msg, "Error");
+                throw error(msg);
+            }
+            contract.parmCustAccount(_custTable.AccountNum);
+            contract.parmAgingBucket(agingDefinition);
+            contract.parmAgingBucketPrintDescription(false);
+            contract.parmAgingPeriod(NoYes::No);
+            contract.parmDayMonth(DayMonth::Day);
+            contract.parmFromDate(_executionDate);
+            contract.parmIncludeReversed(false);
+            contract.parmManualSetup(false);
+            contract.parmPrintAging(false);
+            contract.parmPrintAmountGiro(false);
+            contract.parmPrintCreditLimit(false);
+            contract.parmPrintingDirection(ForwardBackwardPrinting::Forward);
+            contract.parmPrintNonZero(false);
+            contract.parmPrintPaymentSchedule(false);
+            contract.parmPrintType(enum2Str(PrintCopyOriginal::OriginalPrint));
+            contract.parmFromDate(_executionDate);
+            contract.parmToDate(systemDateGet());
+            contract.parmUsePrintManagement(true);
+            contract.parmPrintGiro(0);
+            contract.parmOnlyOpen(false);
+
+            controller.parmReportContract().parmRdpContract(contract);
+            controller.parmReportContract().parmRdlContract().parmLanguageId("en-us");
+            controller.parmReportContract().parmRdlContract().parmLabelLanguageId("en-us");
+
+            query = controller.parmReportContract().parmQueryContracts().lookup(controller.getFirstQueryContractKey());
+            query.dataSourceTable(tableNum(CustTable)).addRange(fieldNum(CustTable, AccountNum)).value(queryValue(_custTable.AccountNum));
+
+            settings = controller.parmReportContract().parmPrintSettings();
+
+            if (settings != null)
+            {
+                settings.printMediumType(SRSPrintMediumType::File);
+                settings.fileFormat(SRSReportFileFormat::PDF);
+                settings.overwriteFile(true);
+                settings.fileName(strFmt("CustomerStatement_%1.pdf", _custTable.AccountNum));
+            }
+
+            controller.startOperation();
+                               
+            executionInfo = controller.parmReportContract().parmReportExecutionInfo();
+            if (executionInfo != null && executionInfo.parmIsSuccessful())
+            {
+                reportBytes = AFZReportBytesStorage::lastBytes;
+                if (reportBytes.Length == 0)
+                {
+                    str msg = "Report rendered with 0 bytes";
+                    error(msg);
+                    this.insertLog(_custTable.AccountNum, msg, "Error");
+                }
+            }
+            else
+            {
+                str msg = strFmt("Report execution failed with status: %1",
+                    executionInfo != null ? executionInfo.parmIsSuccessful() : false);
+                error(msg);
+                this.insertLog(_custTable.AccountNum, msg, "Error");
+            }
+        }
+        catch (Exception::Error)
+        {
+            str msg = strFmt("Report generation error: %1", this.getLastErrorMessage());
+            this.insertLog(_custTable.AccountNum, msg, "Error");
+            throw error(msg);
+        }
+        return reportBytes;
+    }
+
+    private str getLastErrorMessage()
+    {
+        str errorMsg;
+        try
+        {
+            errorMsg = infolog.text(1);
+            if (errorMsg == '')
+            {
+                errorMsg = "Unknown error occurred";
+            }
+        }
+        catch
+        {
+            errorMsg = "Unknown error occurred";
+        }
+        return errorMsg;
+    }
+
+}
