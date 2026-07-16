@@ -1,0 +1,57 @@
+@@@@This one should be called on a custom menu item to use existing logic with different layouts
+and also you can add an extra layout which is called from print mgmt.
+
+public final class AFZSalesPackingSlipController extends SalesPackingSlipController
+{
+    public static AFZSalesPackingSlipController construct()
+    {
+        return new AFZSalesPackingSlipController();
+    }
+
+    public static void main(Args _args)
+    {
+        SrsPrintMgmtFormLetterController controller = new AFZSalesPackingSlipController();
+        controller.parmReportName(PrintMgmtDocType::construct(PrintMgmtDocumentType::SalesOrderPackingSlip).getDefaultReportFormat());
+        controller.parmArgs(_args);
+        controller.parmShowDialog(false);
+        AFZSalesPackingSlipController::startControllerOperation(controller, _args);
+    }
+
+    protected static void startControllerOperation(SrsPrintMgmtFormLetterController _controller, Args _args)
+    {
+        _controller.startOperation();
+    }
+
+    protected void outputReport()
+    {
+        SRSCatalogItemName  reportDesign;
+        MenuItemName menuItemName = args.menuItemName();
+
+        switch (menuItemName)
+        {
+            case menuitemOutputStr(AFZSalesPackingSlip):
+                reportDesign = ssrsReportStr(AFZDeliveryReceipt, Report_PackingSlip);
+                break;
+            case menuitemOutputStr(AFZCommercialInvoice):
+                reportDesign = ssrsReportStr(AFZDeliveryReceipt, Report_CommercialInv);
+                break;
+            default:
+                reportDesign = '';
+                break;
+        }
+        this.parmReportName(reportDesign);
+        this.parmReportContract().parmReportName(reportDesign);
+        formletterReport.parmReportRun().settingDetail().parmReportFormatName(reportDesign);
+        super();
+    }
+
+    protected void initFormLetterReport()
+    {
+        formLetterReport = FormLetterReport::construct(PrintMgmtDocumentType::SalesOrderPackingSlip);
+
+        formLetterReport.parmPrintType(PrintCopyOriginal::Original);
+        formLetterReport.parmUsePrintMgmtDestinations(false);
+        super();
+    }
+
+}
