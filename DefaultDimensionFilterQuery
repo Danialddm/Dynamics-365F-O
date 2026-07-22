@@ -1,0 +1,676 @@
+[Form]
+public class AFZCakeSlipFormQuery extends FormRun
+{
+    QueryBuildDataSource    querySalesLine, querySalesTable, queryInventTable;
+    QueryBuildRange         queryDlvDateRange, queryDlvTypeRange, queryOrderTypeRange, queryItemIdRange, queryL1CatRange, querySalesOrderType, querySpecaialOrder;
+    //SysLookupMultiSelectCtrl        routeIdCtrl, custAccountCtrl, DistributionCtrl;
+    DimensionProvider       dimensionProvider;
+
+    [DataSource]
+    class SalesLine
+    {
+        public void executeQuery()
+        {
+            DimensionAttributeValueSetStorage dimAttrValueSetStorage;
+            querySalesLine.clearRanges();
+            dimensionProvider = new DimensionProvider();
+            dimensionProvider.clearDimensionRangesFromQuery(this.query());
+            
+            querySalesLine.addRange(fieldNum(SalesLine, SalesStatus)).value(enum2Str(SalesStatus::Backorder));
+            querySalesLine.addRange(fieldNum(SalesLine, AFZOrderTypeId)).value(enum2Str(AFZOrderTypeId::NormalSpecial));
+            //querySalesOrderType.value(enum2Str(SalesStatus::Backorder));
+            //querySpecaialOrder.value(enum2Str(AFZOrderTypeId::NormalSpecial));
+
+            if(BusinessUnit.valueStr())
+            {
+                dimensionProvider.addAttributeRangeToQuery(this.query(), querySalesLine.name(), identifierStr(DefaultDimension), DimensionComponent::DimensionAttribute,
+                                                        BusinessUnit.valueStr(), 'D01_BusinessUnit', false);
+            }
+
+            if(Channel.valueStr())
+            {
+                dimensionProvider.addAttributeRangeToQuery(this.query(), querySalesLine.name(), identifierStr(DefaultDimension), DimensionComponent::DimensionAttribute,
+                                                            Channel.valueStr(), 'D05_Channel', false);
+            }
+            
+            if(OrderType.valueStr())
+            {
+                queryOrderTypeRange.value(OrderType.valueStr());
+            }
+            else
+            {
+                queryOrderTypeRange.value(SysQuery::valueUnlimited());
+            }
+
+            if(SalesDeliveryType.valueStr())
+            {
+                queryDlvTypeRange.value(SalesDeliveryType.valueStr());
+            }
+            else
+            {
+                queryDlvTypeRange.value(SysQuery::valueUnlimited());
+            }
+
+            if(DeliveryDateFilter.dateValue())
+            {
+                querySalesLine.addRange(fieldNum(SalesLine, ShippingDateRequested)).value(SysQueryRangeUtil::dateRange(DeliveryDateFilter.dateValue(),DeliveryDateFilter.dateValue()));
+            }
+
+            if(ItemNum.valueStr())
+            {
+                querySalesLine.addRange(fieldNum(SalesLine, ItemId)).value(ItemNum.valueStr());
+            }
+
+            if(CategoryFilter.valueStr())
+            {
+                queryL1CatRange.value(CategoryFilter.valueStr());
+            }
+            else
+            {
+                queryL1CatRange.value(SysQuery::valueUnlimited());
+            }
+
+
+            
+            /*
+            QueryBuildDataSource qbds = this.query().dataSourceTable(tableNum(SalesLine));
+            qbds.clearRanges();
+ 
+            // BusinessUnit filter
+            if (BusinessUnit.text() != '')
+            {
+                DefaultDimensionView df;
+                RecId recId;
+                str rangeString = "";
+                boolean firstValue = true;
+
+                while select df where df.Name == 'D01_BusinessUnit'
+                && df.DisplayValue == BusinessUnit.text()
+                {
+                    recId = df.DefaultDimension;
+
+                    if (!firstValue)
+                    {
+                        rangeString += ',';
+                    }
+
+                    rangeString += int642Str(recId);
+                    firstValue = false;
+                }
+   
+                QueryBuildRange qbrBU = qbds.addRange(fieldNum(SalesLine, DefaultDimension));
+                qbrBU.value(rangeString);
+            }
+            if (Channel.text() != '')
+            {
+                DefaultDimensionView df;
+                RecId recId;
+                str rangeString = "";
+                boolean firstValue = true;
+
+                while select df where df.Name == 'D05_Channel'
+                && df.DisplayValue == Channel.text()
+                {
+                    recId = df.DefaultDimension;
+
+                    if (!firstValue)
+                    {
+                        rangeString += ',';
+                    }
+
+                    rangeString += int642Str(recId);
+                    firstValue = false;
+                }
+   
+                QueryBuildRange qbrCH = qbds.addRange(fieldNum(SalesLine, DefaultDimension));
+                qbrCH.value(rangeString);
+            }
+            // ItemId filter
+            if (ItemNum.text() != '')
+            {
+                QueryBuildRange qbrItem = qbds.addRange(fieldNum(SalesLine, ItemId));
+                qbrItem.value(ItemNum.text());
+            }
+            if (DeliveryDateFilter.dateValue() != dateNull())
+            {
+                str dateStr = date2Str(DeliveryDateFilter.dateValue(), 123, 2, 1, 2, 1, 4);
+
+                QueryBuildRange qbrDate = qbds.addRange(fieldNum(SalesLine, ShippingDateRequested));
+                qbrDate.value(dateStr);
+            }
+            if (SalesDeliveryType.text() != '')
+            {
+                AFZSpecialOrderCakeSlip slip;
+                SalesTable salesTable;
+                SalesId  _salesid;
+                str rangeString = "";
+                boolean firstValue = true;
+
+                while select SalesId from slip
+                    join salesTable where slip.SalesId == salesTable.SalesId
+                    && salesTable.AFZSalesDeliveryType == SalesDeliveryType.text()
+                {
+                    _salesid = slip.SalesId;
+
+                    if (!firstValue)
+                    {
+                        rangeString += ',';
+                    }
+
+                    rangeString += _salesid;
+                    firstValue = false;
+                }
+                if (rangeString != "")
+                {
+                    QueryBuildRange qbrDel = qbds.addRange(fieldNum(SalesLine, SalesId));
+                    qbrDel.value(rangeString);
+                }
+                else
+                {
+                    QueryBuildRange qbrDel = qbds.addRange(fieldNum(SalesLine, SalesId));
+                    qbrDel.value("''");
+                }
+            }
+            // Category filter
+            if (CategoryFilter.text() != '')
+            {
+                AFZSpecialOrderCakeSlip slip;
+                InventTable invTable;
+                ItemId _itemId;
+                str rangeString = "";
+                boolean firstValue = true;
+
+                while select ItemId from slip 
+                    join invTable where slip.ItemId == invTable.ItemId
+                    && invTable.AFZCategoryCodeLev1 == CategoryFilter.text()
+                {
+                    _itemId = slip.ItemId;
+
+                    if (!firstValue)
+                    {
+                        rangeString += ',';
+                    }
+
+                    rangeString += _itemId;
+                    firstValue = false;
+                }
+                if (rangeString != "")
+                {
+                    QueryBuildRange qbrCat = qbds.addRange(fieldNum(SalesLine, ItemId));
+                    qbrCat.value(rangeString);
+                }
+                else
+                {
+                    QueryBuildRange qbrCat = qbds.addRange(fieldNum(SalesLine, ItemId));
+                    qbrCat.value("''");
+                }
+            }
+
+            if (OrderType.text() != '')
+            {
+                AFZSpecialOrderCakeSlip slip;
+                SalesTable salesTable;
+                SalesId  _salesid;
+                str rangeString = "";
+                boolean firstValue = true;
+
+                while select SalesId from slip
+                    join salesTable where slip.SalesId == salesTable.SalesId
+                    && salesTable.AFZOrderType == OrderType.text()
+                {
+                    _salesid = slip.SalesId;
+
+                    if (!firstValue)
+                    {
+                        rangeString += ',';
+                    }
+
+                    rangeString += _salesid;
+                    firstValue = false;
+                }
+                if (rangeString != "")
+                {
+                    QueryBuildRange qbrOrder = qbds.addRange(fieldNum(SalesLine, SalesId));
+                    qbrOrder.value(rangeString);
+                }
+                else
+                {
+                    QueryBuildRange qbrOrder = qbds.addRange(fieldNum(SalesLine, SalesId));
+                    qbrOrder.value("''");
+                }
+            }*/
+            super();
+            
+        }
+
+        public void init()
+        {
+            super();
+            querySalesLine = this.query().dataSourceTable(tableNum(SalesLine));
+            querySalesTable = querySalesLine.addDataSource(TableNum(SalesTable));            
+            querySalesTable.relations(true);
+            queryOrderTypeRange = querySalesTable.addRange(fieldNum(SalesTable, AFZOrderType));
+            queryDlvTypeRange = querySalesTable.addRange(fieldNum(SalesTable, AFZSalesDeliveryType));
+            queryInventTable = querySalesLine.addDataSource(tableNum(InventTable));
+            queryInventTable.relations(true);
+            queryL1CatRange = queryInventTable.addRange(fieldNum(InventTable, AFZCategoryCodeLev1));
+            //queryDlvDateRange = querySalesTable.addRange(fieldNum(SalesLine, ShippingDateRequested));
+
+           /* QueryBuildDataSource qbds = this.query().dataSourceTable(tableNum(SalesLine));
+            qbds.clearRanges();
+            qbds.addRange(fieldNum(SalesLine, SalesStatus)).value(enum2Str(SalesStatus::Backorder));
+            qbds.addRange(fieldNum(SalesLine, AFZOrderTypeId)).value(enum2Str(AFZOrderTypeId::NormalSpecial));
+            QueryRun qr = new QueryRun(this.query());
+            SalesLine sl, _salesLine;
+            AFZSpecialOrderCakeSlip slip;
+            while (qr.next())
+            {
+                sl = qr.get(tableNum(SalesLine));
+
+                select firstOnly slip
+                    where slip.SalesId == sl.SalesId && slip.ItemId == sl.ItemId
+                    && slip.LineNum == sl.LineNum;
+                if (!slip)
+                {
+                    slip.SalesId = sl.SalesId;
+                    slip.ItemId = sl.ItemId;
+                    slip.LineNum = sl.LineNum;
+                    select count(RecId) from _salesLine where _salesLine.SalesId == sl.SalesId;
+                    if(_salesLine.RecId > 1)//multi
+                        slip.LineType = AFZMultiLine::Multi;
+                    else//multi
+                        slip.LineType = AFZMultiLine::Single;
+                    slip.insert();
+                }
+            } */
+        }
+
+        public display Name itemName(SalesLine _salesLine)
+        {
+            return _salesLine.itemName();
+        }
+
+        public display Name custName(SalesLine _salesLine)
+        {
+            return CustTable::find(_salesLine.CustAccount).name();
+        }
+
+        public display TimeHour24 delTime(SalesLine _salesLine)
+        {
+            return SalesTable::find(_salesLine.SalesId).AFZDeliveryTime;
+        }
+
+        public display MCRGiftCertMessage mes(SalesLine _salesLine)
+        {
+            return SalesTable::find(_salesLine.SalesId).AFZSpecialCakeNote;//MCRSalesLine::findSalesLine(_salesLine.RecId).GiftCardGiftMessage;
+        }
+
+        public display AFZOrderType orderType(SalesLine _salesLine)
+        {
+            return SalesTable::find(_salesLine.SalesId).AFZOrderType;
+        }
+
+        public display AFZCategoryCode categoryName(SalesLine _salesLine)
+        {
+            return InventTable::find(_salesLine.ItemId).AFZCategoryCodeLev1;
+        }
+
+        public display SalesUnit unit1(SalesLine _salesLine)
+        {
+            str um = '';
+            if(_salesLine.SalesUnit == 'kg')
+            {
+                um = 'kg';
+            }
+            else
+            {
+                um = '';
+            }
+            return um;
+        }
+
+        public display Qty unit1Wt(SalesLine _salesLine)
+        {
+            real wtQ;
+            if(_salesLine.SalesUnit == 'kg')
+            {
+                wtQ = _salesLine.SalesQty;
+            }
+            else
+            {
+                wtQ = 0;
+            }
+            return wtQ;
+        }
+
+        public display SalesUnit unit2(SalesLine _salesLine)
+        {
+            str um = '';
+            if(_salesLine.SalesUnit == 'kg')
+            {
+                um = '';
+            }
+            else
+            {
+                um = _salesLine.SalesUnit;
+            }
+            return um;
+        }
+
+        public display Qty unit2Wt(SalesLine _salesLine)
+        {
+            real wtQ;
+            if(_salesLine.SalesUnit == 'kg')
+            {
+                wtQ = 0;
+            }
+            else
+            {
+                wtQ = _salesLine.SalesQty;
+            }
+            return wtQ;
+        }
+
+        public display str getLineType(SalesLine _salesLine)
+        {
+            SalesLine       salesLineCount;
+            str             ret;
+            select count(RecId) from salesLineCount where salesLineCount.SalesId == _salesLine.SalesId;
+
+            if(salesLineCount.RecId > 1)
+            {
+                ret = enum2Str(AFZMultiLine::Multi);
+            }
+            else
+            {
+                ret = enum2Str(AFZMultiLine::Single);
+            }
+
+            return ret;
+        }
+
+    }
+
+    [Control("String")]
+    class BusinessUnit
+    {
+        /*
+        /// <summary>
+        ///
+        /// </summary>
+        public void lookup()
+        {
+            Args lookupArguments = new Args();
+            //sysTableLookup = SysTableLookup::newParameters(tableNum(AFZRouteTable), this);
+
+            lookupArguments.name(formStr(DimensionLookup));
+            lookupArguments.lookupValue(BusinessUnit.text());
+            lookupArguments.caller(BusinessUnit);
+
+            DimensionAttribute dimensionAttribute = DimensionAttribute::findByLocalizedName(BusinessUnit.label());
+            lookupArguments.lookupField(dimensionAttribute.ValueAttribute);
+            lookupArguments.record(dimensionAttribute);
+
+            // Run the custom lookup and init the lookup form
+            FormRun lookupFormRun = classfactory.formRunClass(lookupArguments);
+            lookupFormRun.init();
+
+            BusinessUnit.performFormLookup(lookupFormRun);
+        }
+
+        public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+
+            SalesLine_ds.executeQuery();
+            return ret;
+        } */
+
+        public void lookup()
+        {
+            SysTableLookup        sysTableLookup = SysTableLookup::newParameters(tableNum(OMOperatingUnit), this);
+            Query                 query = new Query();
+            QueryBuildDataSource  qbds;
+
+            // Add the business unit table to the query
+            qbds = query.addDataSource(tableNum(OMOperatingUnit));
+
+            // Filter by Operating Unit Type - Business Unit
+            qbds.addRange(fieldNum(OMOperatingUnit, OMOperatingUnitType)).value(queryValue(OMOperatingUnitType::OMBusinessUnit));
+    
+            // Add fields to display in the dropdown grid
+            sysTableLookup.addLookupfield(fieldNum(OMOperatingUnit, OMOperatingUnitNumber));
+            sysTableLookup.addLookupfield(fieldNum(OMOperatingUnit, Name));
+    
+            // Pass the query to the lookup form
+            sysTableLookup.parmQuery(query);
+            sysTableLookup.performFormLookup();
+            //super();
+        }
+
+    }
+
+    [Control("String")]
+    class Channel
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public void lookup()
+        {
+            Args lookupArguments = new Args();
+            //sysTableLookup = SysTableLookup::newParameters(tableNum(AFZRouteTable), this);
+
+            lookupArguments.name(formStr(DimensionLookup));
+            lookupArguments.lookupValue(Channel.text());
+            lookupArguments.caller(Channel);
+
+            DimensionAttribute dimensionAttribute = DimensionAttribute::findByLocalizedName(Channel.label());
+            lookupArguments.lookupField(dimensionAttribute.ValueAttribute);
+            lookupArguments.record(dimensionAttribute);
+
+            // Run the custom lookup and init the lookup form
+            FormRun lookupFormRun = classfactory.formRunClass(lookupArguments);
+            lookupFormRun.init();
+
+            Channel.performFormLookup(lookupFormRun);
+        }
+        /*
+        public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+            SalesLine_ds.executeQuery();
+
+            return ret;
+        }*/
+
+    }
+
+    [Control("String")]
+    class OrderType
+    {
+        public void lookup()
+        {
+            Query                   query = new Query();
+            QueryBuildDataSource    qbds;
+            SysTableLookup          sysTableLookup;
+
+            // Create lookup on AFZRouteTable
+            sysTableLookup = SysTableLookup::newParameters(tableNum(AFZSalesOrderType), this);
+
+            // Add fields to display
+            sysTableLookup.addLookupfield(fieldNum(AFZSalesOrderType , OrderType));
+            sysTableLookup.addLookupfield(fieldNum(AFZSalesOrderType , Description));
+
+            // Build query
+            qbds = query.addDataSource(tableNum(AFZSalesOrderType));
+            
+            sysTableLookup.parmQuery(query);
+
+            // Show lookup
+            sysTableLookup.performFormLookup();
+        }
+
+        /*public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+            SalesLine_ds.executeQuery();
+            return ret;
+        }*/
+
+    }
+
+    [Control("String")]
+    class SalesDeliveryType
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public void lookup()
+        {
+            Query                   query = new Query();
+            QueryBuildDataSource    qbds;
+            SysTableLookup          sysTableLookup;
+    
+            // Create lookup on AFZSalesDeliveryTypeTable
+            sysTableLookup = SysTableLookup::newParameters(tableNum(AFZSalesDeliveryTypeTable), this);
+    
+            // Add fields to display
+            sysTableLookup.addLookupfield(fieldNum(AFZSalesDeliveryTypeTable, AFZDeliveryTypeId));
+            sysTableLookup.addLookupfield(fieldNum(AFZSalesDeliveryTypeTable, Description));
+    
+            // Build query
+            qbds = query.addDataSource(tableNum(AFZSalesDeliveryTypeTable));
+            
+            sysTableLookup.parmQuery(query);
+    
+            // Show lookup
+            sysTableLookup.performFormLookup();
+        }
+
+        /*public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+            SalesLine_ds.executeQuery();
+            return ret;
+        }*/
+
+    }
+
+    [Control("String")]
+    class ItemNum
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public void lookup()
+        {
+            Query                   query = new Query();
+            QueryBuildDataSource    qbds;
+            SysTableLookup          sysTableLookup;
+    
+            // Create lookup on AFZSalesDeliveryTypeTable
+            sysTableLookup = SysTableLookup::newParameters(tableNum(InventTable), this);
+    
+            // Add fields to display
+            sysTableLookup.addLookupfield(fieldNum(InventTable, ItemId));
+    
+            // Build query
+            qbds = query.addDataSource(tableNum(InventTable));
+            
+            sysTableLookup.parmQuery(query);
+    
+            // Show lookup
+            sysTableLookup.performFormLookup();
+        }
+
+        /*public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+
+            SalesLine_ds.executeQuery();
+            return ret;
+        }*/
+
+    }
+
+    [Control("String")]
+    class CategoryFilter
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public void lookup()
+        {
+            Query                   query = new Query();
+            QueryBuildDataSource    qbds;
+            SysTableLookup          sysTableLookup;
+    
+            // Create lookup on AFZSalesDeliveryTypeTable
+            sysTableLookup = SysTableLookup::newParameters(tableNum(AFZItemCategoryLev1), this);
+    
+            // Add fields to display
+            sysTableLookup.addLookupfield(fieldNum(AFZItemCategoryLev1, CategoryCode));
+            sysTableLookup.addLookupfield(fieldNum(AFZItemCategoryLev1 , Description));
+    
+            // Build query
+            qbds = query.addDataSource(tableNum(AFZItemCategoryLev1));
+            
+            sysTableLookup.parmQuery(query);
+    
+            // Show lookup
+            sysTableLookup.performFormLookup();
+        }
+
+        /*public boolean modified()
+        {
+            boolean ret;
+        
+            ret = super();
+
+            SalesLine_ds.executeQuery();
+            return ret;
+        }*/
+
+    }
+
+    [Control("MenuFunctionButton")]
+    class PrintButton
+    {
+        public void clicked()
+        {
+            /*AFZSpecialOrderCakeSlip cs = AFZSpecialOrderCakeSlip_ds.cursor();
+            if(cs.PrintStatus == NoYes::Yes)
+            {
+                Box::warning("This record has been already printed.", "Warning");
+            }*/
+            super();
+        }
+
+    }
+
+    [Control("Button")]
+    class ApplyFilter
+    {
+        /// <summary>
+        ///
+        /// </summary>
+        public void clicked()
+        {            
+            super();
+            SalesLine_ds.executeQuery();
+        }
+
+    }
+
+}
