@@ -1,0 +1,19 @@
+[ExtensionOf(classStr(SalesPackingSlipJournalCreate))]
+final class AFZSalesPackingSlipJournalCreate_Extension
+{
+    public Common initJournalLine(Common _parmLine)
+    {
+        CustPackingSlipTrans trans;
+        SalesParmLine  salesParmLine = _parmLine as SalesParmLine;
+        trans = next initJournalLine(_parmLine) as CustPackingSlipTrans;
+
+        if(salesParmLine.AFZBox != 0 || salesParmLine.AFZGrossWeight != 0 || salesParmLine.AFZNetWeight != 0)
+        {
+            trans.AFZBox = salesParmLine.AFZBox;
+            trans.AFZGrossWeight = salesParmLine.AFZGrossWeight;
+            trans.AFZNetWeight = salesParmLine.AFZNetWeight;
+        }
+        return trans;
+    }
+
+}
