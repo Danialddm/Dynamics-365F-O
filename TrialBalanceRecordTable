@@ -1,0 +1,89 @@
+mainacc and other dimensions come from LedgerTrialBalanceTmp.DimensionValues[1], [2] and ...;
+
+public LedgerTrialBalanceTmp run(LedgerTrialBalanceTmp _ledgerTrialBalanceTmp
+        , TransDate _fromDate
+        , TransDate _toDate)
+        //, str _employeeId)
+    {
+        LedgerTrialBalanceDP ledgerTrialBalanceDP;
+        LedgerTrialBalanceContract ledgerTrialBalanceContract;
+        LedgerTrialBalanceTmp ledgerTrialBalanceTmp;
+        LedgerTrialBalanceTmp ledgerTrialBalanceTmpCustom;
+        DimensionHierarchy dimensionHierarchy;
+        List postingLayer;
+        System.Exception exception;
+        #OCCRetryCount
+                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+    try
+        {
+            ledgerTrialBalanceDP        = new LedgerTrialBalanceDP();
+            ledgerTrialBalanceContract  = new LedgerTrialBalanceContract();
+            postingLayer                = new List(Types::Enum);
+            dimensionHierarchy          = DimensionHierarchy::getMainAccountFocus();
+ 
+            ledgerTrialBalanceTmpCustom.linkPhysicalTableInstance(_ledgerTrialBalanceTmp);
+ 
+            delete_from ledgerTrialBalanceTmpCustom;
+ 
+            postingLayer.addEnd(CurrentOperationsTax::Current);
+ 
+            ledgerTrialBalanceContract.parmFromDate(_fromDate);
+            ledgerTrialBalanceContract.parmToDate(_toDate);
+            ledgerTrialBalanceContract.parmIncludeOpening(false);
+            ledgerTrialBalanceContract.parmIncludeClosing(false);
+            ledgerTrialBalanceContract.parmPostingLayers(postingLayer);
+            ledgerTrialBalanceContract.parmPrimaryDimensionFocus("MA+CC+IC");
+            ledgerTrialBalanceContract.parmIncludeClosingAdjustments(false);
+            ledgerTrialBalanceContract.parmIncludeClosingTransactions(false);
+            ledgerTrialBalanceContract.parmDisplayMainAccountCategory(false);
+ 
+            ledgerTrialBalanceDP.parmDataContract(ledgerTrialBalanceContract);
+            ledgerTrialBalanceDP.setTrialBalanceTmpTable(ledgerTrialBalanceTmp);
+            ledgerTrialBalanceDP.processReport();
+ 
+            ledgerTrialBalanceTmp = ledgerTrialBalanceDP.getLedgerTrialBalanceTmp();
+ 
+            insert_recordset ledgerTrialBalanceTmpCustom
+            (DimensionValues
+            , PrimaryFocus
+            , LedgerDimension
+            , PrimaryFocusDescription
+            , OpeningBalance
+            , AmountDebit
+            , AmountCredit
+            , EndingBalance)
+                select DimensionValues
+                        , PrimaryFocus
+                        , LedgerDimension
+                        , PrimaryFocusDescription
+                        , OpeningBalance
+                        , AmountDebit
+                        , AmountCredit
+                        , EndingBalance from ledgerTrialBalanceTmp;
+                           // where ledgerTrialBalanceTmp.DimensionValues[1]                      == '110110'
+                             //   && (!_employeeId || ledgerTrialBalanceTmp.DimensionValues[2]    == _employeeId);
+ 
+        }
+        catch(Exception::Error)
+        {
+            throw error('Error occurred during calculating the balances. Please try again.');
+        }
+        catch(Exception::Deadlock)
+        {
+            retry;
+        }
+        catch (Exception::CLRError)
+        {
+            exception = ClrInterop::getLastException();
+            if (exception != null)
+            {
+                exception = exception.get_InnerException();
+                if (exception != null)
+                {
+                    error(exception.ToString());
+                }
+            }
+        }
+ 
+        return ledgerTrialBalanceTmpCustom;
+    }
