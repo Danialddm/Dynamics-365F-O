@@ -1,3 +1,9 @@
+****Important tip****
+If the report controller does not have any reportname or method reportname, you should look for the formletter structure.
+In case of using reportname after editing the print mgmt class, the changes below are also required.
+If it is using the formletter instead, the print mgmt extension is enough without controller changes.
+
+
 [ExtensionOf(classStr(AFPPurchaseOrderDraftController))]
 final class AFPPurchaseOrderDraftController_Alfazance_Extension
 {
