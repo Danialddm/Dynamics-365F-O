@@ -1,4 +1,7 @@
-final class AFZPOFinDimUpdate
+//this is event click of the button that called in it.
+//it updates the default dim first and then updates the ledger dim with respect to the new fin dim regarding to the account structure.
+
+final class AFZPOLineFinDimUpdate
 {
     // Change these two to your dimension names
     private const str DimA = 'CostCenter';
@@ -9,7 +12,7 @@ final class AFZPOFinDimUpdate
     private const str DimF = 'Responsibilitycenter';
     private const str DimG = 'RevenueClassification';
 
-    PurchTable  purchTable;
+    PurchLine  purchLine;
     DialogField fieldA;
     DialogField fieldB;
     DialogField fieldC;
@@ -18,29 +21,29 @@ final class AFZPOFinDimUpdate
     DialogField fieldF;
     DialogField fieldG;
 
-    public static void show(PurchTable _purchTable)
+    public static void show(PurchLine _purchLine)
     {
-        if (!_purchTable.RecId)
+        if (!_purchLine.RecId)
         {
             return;
         }
-        if(_purchTable.PurchStatus == PurchStatus::Invoiced)
-        {
-            warning("This PO is fully invoiced. Update financial dimensions is not allowed.");
-            return;
-        }
+        //if(_purchTable.PurchStatus == PurchStatus::Invoiced)
+        //{
+        //    warning("This PO is fully invoiced. Update financial dimensions is not allowed.");
+        //    return;
+        //}
 
-        AFZPOFinDimUpdate me = new AFZPOFinDimUpdate();
-        me.purchTable = _purchTable;
+        AFZPOLineFinDimUpdate me = new AFZPOLineFinDimUpdate();
+        me.purchLine = _purchLine;
         me.run();
     }
 
     private void run()
     {
         DimensionAttributeValueSetStorage storage =
-            DimensionAttributeValueSetStorage::find(purchTable.DefaultDimension);
+            DimensionAttributeValueSetStorage::find(purchLine.DefaultDimension);
 
-        Dialog dialog = new Dialog(strFmt("Financial dimensions update for PO: %1", purchTable.PurchId));
+        Dialog dialog = new Dialog(strFmt("Financial dimensions update for PO: %1", purchLine.PurchId));
         dialog.addText("Select the dimension values.");       
         fieldA = dialog.addField(extendedTypeStr(DimensionValue), DimA);
         fieldB = dialog.addField(extendedTypeStr(DimensionValue), DimB);
@@ -225,7 +228,7 @@ final class AFZPOFinDimUpdate
 
         lookup.parmQuery(query);
 
-        changeCompany(purchTable.DataAreaId)
+        changeCompany(purchLine.DataAreaId)
         {
             lookup.performFormLookup();
         }
@@ -279,13 +282,106 @@ final class AFZPOFinDimUpdate
         DimensionDefault newDimension = _storage.save();
 
         ttsbegin;
-        PurchTable pt = PurchTable::find(purchTable.PurchId, true);
+        PurchLine pt = PurchLine::find(purchLine.PurchId, purchLine.LineNumber, true);
         pt.selectForUpdate(true);
         pt.skipEvents(true);
         pt.DefaultDimension = newDimension;
         pt.doUpdate();
+
+        AccountingDistribution accountingDistribution;
+        DimensionAttribute     dimAttr;
+        LedgerDimensionAccount newLedgerDimension;
+        //MainAccount-LineofBusiness-Department-Responsibilitycenter-CostCenter-RevenueClassification
+        select firstonly forupdate accountingDistribution
+            where accountingDistribution.SourceDocumentLine == purchLine.SourceDocumentLine;
+        newLedgerDimension = accountingDistribution.LedgerDimension;
+
+        // Update Line of Business
+        dimAttr = DimensionAttribute::findByName("LineofBusiness");
+
+        newLedgerDimension = this.replaceDimensionValue(
+        newLedgerDimension,
+        dimAttr,
+        fieldD.value());
+
+            // Update Department
+        dimAttr = DimensionAttribute::findByName("Department");
+
+        newLedgerDimension = this.replaceDimensionValue(
+        newLedgerDimension,
+        dimAttr,
+        fieldB.value());
+
+        // Responsibilitycenter
+        dimAttr = DimensionAttribute::findByName("Responsibilitycenter");
+
+        newLedgerDimension = this.replaceDimensionValue(
+        newLedgerDimension,
+        dimAttr,
+        fieldF.value());
+
+            // Update Cost Center
+        dimAttr = DimensionAttribute::findByName("CostCenter");
+
+        newLedgerDimension = this.replaceDimensionValue(
+            newLedgerDimension,
+            dimAttr,
+            fieldA.value());
+
+        // Update RevenueClassification
+        dimAttr = DimensionAttribute::findByName("RevenueClassification");
+
+        newLedgerDimension = this.replaceDimensionValue(
+            newLedgerDimension,
+            dimAttr,
+            fieldG.value());
+
+        // Replace previous Ledger Dimension
+        accountingDistribution.LedgerDimension = newLedgerDimension;
+        accountingDistribution.update();
         ttscommit;
-        info("The PO financial dimensions were updated successfully.");
+        info("Update was done successfully.");
+    }
+
+    public LedgerDimensionAccount replaceDimensionValue(
+        LedgerDimensionAccount _ledgerDimension,
+        DimensionAttribute     _dimAttr,
+        DimensionValue         _toDimensionVal)
+    {
+        LedgerDimensionAccount              ledgerDimension;
+        DimensionDefault                    defaultDimension;
+        DimensionDefault                    replaceDimension;
+        DimensionAttributeValue             dimAttrValue;
+        DimensionAttributeValueSetStorage   dimAttrValDimStorage;
+        MainAccount                 mainAccount;
+        LedgerDimensionDefaultAccount defaultAccount;
+        if (_toDimensionVal != '')
+        {
+            // convert to Default dimensions
+            defaultDimension  =
+            LedgerDimensionFacade::getDefaultDimensionFromLedgerDimension(
+            _ledgerDimension);
+            dimAttrValDimStorage = DimensionAttributeValueSetStorage::find(defaultDimension);
+
+            dimAttrValue = DimensionAttributeValue::findByDimensionAttributeAndValue(_dimAttr, _toDimensionVal);
+
+            dimAttrValDimStorage.addItem(dimAttrValue);
+            replaceDimension = dimAttrValDimStorage.save();
+            
+            mainAccount = MainAccount::findByMainAccountId(
+            LedgerDimensionFacade::getMainAccountIdFromLedgerDimension(_ledgerDimension));
+
+            defaultAccount =
+            LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountRecId(mainAccount.RecId);
+
+            ledgerDimension = LedgerDimensionFacade::serviceCreateLedgerDimension(defaultAccount, replaceDimension);
+        }
+        else
+        {
+            ledgerDimension = _ledgerDimension;
+        }
+
+        return ledgerDimension;
     }
 
     private void setValue(DimensionAttributeValueSetStorage _storage, str _dimName, str _value)
