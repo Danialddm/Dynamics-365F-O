@@ -1,0 +1,320 @@
+final class AFZPOFinDimUpdate
+{
+    // Change these two to your dimension names
+    private const str DimA = 'CostCenter';
+    private const str DimB = 'Department';
+    private const str DimC = 'Employee';
+    private const str DimD = 'LineofBusiness';
+    private const str DimE = 'Project';
+    private const str DimF = 'Responsibilitycenter';
+    private const str DimG = 'RevenueClassification';
+
+    PurchTable  purchTable;
+    DialogField fieldA;
+    DialogField fieldB;
+    DialogField fieldC;
+    DialogField fieldD;
+    DialogField fieldE;
+    DialogField fieldF;
+    DialogField fieldG;
+
+    public static void show(PurchTable _purchTable)
+    {
+        if (!_purchTable.RecId)
+        {
+            return;
+        }
+        if(_purchTable.PurchStatus == PurchStatus::Invoiced)
+        {
+            warning("This PO is fully invoiced. Update financial dimensions is not allowed.");
+            return;
+        }
+
+        AFZPOFinDimUpdate me = new AFZPOFinDimUpdate();
+        me.purchTable = _purchTable;
+        me.run();
+    }
+
+    private void run()
+    {
+        DimensionAttributeValueSetStorage storage =
+            DimensionAttributeValueSetStorage::find(purchTable.DefaultDimension);
+
+        Dialog dialog = new Dialog(strFmt("Financial dimensions update for PO: %1", purchTable.PurchId));
+        dialog.addText("Select the dimension values.");       
+        fieldA = dialog.addField(extendedTypeStr(DimensionValue), DimA);
+        fieldB = dialog.addField(extendedTypeStr(DimensionValue), DimB);
+        fieldC = dialog.addField(extendedTypeStr(DimensionValue), DimC);
+        fieldD = dialog.addField(extendedTypeStr(DimensionValue), DimD);
+        fieldE = dialog.addField(extendedTypeStr(DimensionValue), DimE);
+        fieldF = dialog.addField(extendedTypeStr(DimensionValue), DimF);
+        fieldG = dialog.addField(extendedTypeStr(DimensionValue), DimG);
+
+        // Current values
+        fieldA.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimA).RecId));
+        fieldB.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimB).RecId));
+        fieldC.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimC).RecId));
+        fieldD.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimD).RecId));
+        fieldE.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimE).RecId));
+        fieldF.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimF).RecId));
+        fieldG.value(storage.getDisplayValueByDimensionAttribute(DimensionAttribute::findByName(DimG).RecId));
+
+        // Lookups
+        fieldA.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupA), this);
+        fieldB.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupB), this);
+        fieldC.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupC), this);
+        fieldD.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupD), this);
+        fieldE.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupE), this);
+        fieldF.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupF), this);
+        fieldG.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(AFZPOFinDimUpdate, lookupG), this);
+
+        if (dialog.run())
+        {
+            this.save(storage);
+        }
+    }
+
+    private void showLookup(FormStringControl _ctrl, str _dimName)
+    {
+
+        switch (_dimName)
+        {
+            case DimA:   // CostCenter
+            case DimE:   // Project
+            case DimG:   // RevenueClassification
+                this.lookupFinancialTag(_ctrl, _dimName);
+                break;
+
+            case DimB:   // Department
+                this.lookupFinancialTag_Department(_ctrl, _dimName);
+                break;
+
+            case DimC:   // Employee
+                this.lookupFinancialTag_Employee(_ctrl, _dimName);
+                break; 
+
+            case DimD:   // LineofBusiness 
+                this.lookupFinancialTag_LineofBusiness(_ctrl, _dimName);
+                break;
+
+            case DimF:   // Responsibilitycenter
+                this.lookupFinancialTag_Responsibilitycenter(_ctrl, _dimName);
+                break;
+
+            default:    
+                this.lookupDefaultView(_ctrl, _dimName);
+                break;           
+        }
+    }
+
+    private void lookupFinancialTag(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DimensionFinancialTag), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DimensionFinancialTag, Value), true);   // returned to the dialog field
+        lookup.addLookupfield(fieldNum(DimensionFinancialTag, Description));
+
+        Query                query   = new Query();
+        QueryBuildDataSource qbdsTag = query.addDataSource(tableNum(DimensionFinancialTag));
+        QueryBuildDataSource qbdsDef = qbdsTag.addDataSource(tableNum(DefaultDimensionView));
+
+        qbdsDef.joinMode(JoinMode::ExistsJoin);
+        qbdsDef.addLink(fieldNum(DimensionFinancialTag, Value), fieldNum(DefaultDimensionView, DisplayValue));
+        qbdsDef.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        qbdsTag.addSortField(fieldNum(DimensionFinancialTag, Value));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+    private void lookupFinancialTag_Department(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DimAttributeOMDepartment), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DimAttributeOMDepartment, Value), true);   // returned to the dialog field
+        lookup.addLookupfield(fieldNum(DimAttributeOMDepartment, Name));
+
+        Query                query   = new Query();
+        QueryBuildDataSource qbdsTag = query.addDataSource(tableNum(DimAttributeOMDepartment));
+        QueryBuildDataSource qbdsDef = qbdsTag.addDataSource(tableNum(DefaultDimensionView));
+
+        qbdsDef.joinMode(JoinMode::ExistsJoin);
+        qbdsDef.addLink(fieldNum(DimAttributeOMDepartment, Value), fieldNum(DefaultDimensionView, DisplayValue));
+        qbdsDef.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        qbdsTag.addSortField(fieldNum(DimAttributeOMDepartment, Value));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+    private void lookupFinancialTag_Employee(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DimAttributeHcmWorker), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DimAttributeHcmWorker, Value), true);   // returned to the dialog field
+        lookup.addLookupfield(fieldNum(DimAttributeHcmWorker, Name));
+
+        Query                query   = new Query();
+        QueryBuildDataSource qbdsTag = query.addDataSource(tableNum(DimAttributeHcmWorker));
+        QueryBuildDataSource qbdsDef = qbdsTag.addDataSource(tableNum(DefaultDimensionView));
+
+        qbdsDef.joinMode(JoinMode::ExistsJoin);
+        qbdsDef.addLink(fieldNum(DimAttributeHcmWorker, Value), fieldNum(DefaultDimensionView, DisplayValue));
+        qbdsDef.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        qbdsTag.addSortField(fieldNum(DimAttributeHcmWorker, Value));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+    private void lookupFinancialTag_LineofBusiness(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DimAttributeOMBusinessUnit), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DimAttributeOMBusinessUnit, Value), true);   // returned to the dialog field
+        lookup.addLookupfield(fieldNum(DimAttributeOMBusinessUnit, Name));
+
+        Query                query   = new Query();
+        QueryBuildDataSource qbdsTag = query.addDataSource(tableNum(DimAttributeOMBusinessUnit));
+        QueryBuildDataSource qbdsDef = qbdsTag.addDataSource(tableNum(DefaultDimensionView));
+
+        qbdsDef.joinMode(JoinMode::ExistsJoin);
+        qbdsDef.addLink(fieldNum(DimAttributeOMBusinessUnit, Value), fieldNum(DefaultDimensionView, DisplayValue));
+        qbdsDef.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        qbdsTag.addSortField(fieldNum(DimAttributeOMBusinessUnit, Value));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+    private void lookupFinancialTag_Responsibilitycenter(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DimAttributeOMCostCenter), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DimAttributeOMCostCenter, Value), true);   // returned to the dialog field
+        lookup.addLookupfield(fieldNum(DimAttributeOMCostCenter, Name));
+
+        Query                query   = new Query();
+        QueryBuildDataSource qbdsTag = query.addDataSource(tableNum(DimAttributeOMCostCenter));
+        QueryBuildDataSource qbdsDef = qbdsTag.addDataSource(tableNum(DefaultDimensionView));
+
+        qbdsDef.joinMode(JoinMode::ExistsJoin);
+        qbdsDef.addLink(fieldNum(DimAttributeOMCostCenter, Value), fieldNum(DefaultDimensionView, DisplayValue));
+        qbdsDef.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        qbdsTag.addSortField(fieldNum(DimAttributeOMCostCenter, Value));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+    private void lookupDefaultView(FormStringControl _ctrl, str _dimName)
+    {
+        SysTableLookup lookup = SysTableLookup::newParameters(tableNum(DefaultDimensionView), _ctrl);
+
+        lookup.addLookupfield(fieldNum(DefaultDimensionView, DisplayValue), true);
+
+        Query                query = new Query();
+        QueryBuildDataSource qbds  = query.addDataSource(tableNum(DefaultDimensionView));
+
+        qbds.addRange(fieldNum(DefaultDimensionView, Name)).value(queryValue(_dimName));
+
+        lookup.parmQuery(query);
+
+        changeCompany(purchTable.DataAreaId)
+        {
+            lookup.performFormLookup();
+        }
+    }
+
+    public void lookupA(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimA);
+    }
+
+    public void lookupB(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimB);
+    }
+
+    public void lookupC(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimC);
+    }
+
+    public void lookupD(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimD);
+    }
+
+    public void lookupE(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimE);
+    }
+
+    public void lookupF(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimF);
+    }
+
+    public void lookupG(FormStringControl _ctrl)
+    {
+        this.showLookup(_ctrl, DimG);
+    }
+
+    private void save(DimensionAttributeValueSetStorage _storage)
+    {
+        this.setValue(_storage, DimA, fieldA.value());
+        this.setValue(_storage, DimB, fieldB.value());
+        this.setValue(_storage, DimC, fieldC.value());
+        this.setValue(_storage, DimD, fieldD.value());
+        this.setValue(_storage, DimE, fieldE.value());
+        this.setValue(_storage, DimF, fieldF.value());
+        this.setValue(_storage, DimG, fieldG.value());
+
+        DimensionDefault newDimension = _storage.save();
+
+        ttsbegin;
+        PurchTable pt = PurchTable::find(purchTable.PurchId, true);
+        pt.selectForUpdate(true);
+        pt.skipEvents(true);
+        pt.DefaultDimension = newDimension;
+        pt.doUpdate();
+        ttscommit;
+        info("The PO financial dimensions were updated successfully.");
+    }
+
+    private void setValue(DimensionAttributeValueSetStorage _storage, str _dimName, str _value)
+    {
+        DimensionAttribute attribute = DimensionAttribute::findByName(_dimName);
+
+        if (!attribute.RecId)
+        {
+            warning(strFmt("Dimension %1 not found.", _dimName));
+            return;
+        }
+
+        _value = strLRTrim(_value);
+
+        if (_value == '')
+        {
+            // Blank means "clear this dimension"
+            if (_storage.containsDimensionAttribute(attribute.RecId))
+            {
+                _storage.removeDimensionAttribute(attribute.RecId);
+            }
+
+            return;
+        }
+
+        DimensionAttributeValue attrValue =
+        DimensionAttributeValue::findByDimensionAttributeAndValue(attribute, _value, false, true);
+
+        _storage.addItem(attrValue);  
+    }
+
+}
