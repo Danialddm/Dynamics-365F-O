@@ -1,6 +1,3 @@
-//this is event click of the button that called in it.
-//it updates the default dim first and then updates the ledger dim with respect to the new fin dim regarding to the account structure.
-
 final class AFZPOLineFinDimUpdate
 {
     // Change these two to your dimension names
@@ -288,59 +285,60 @@ final class AFZPOLineFinDimUpdate
         pt.DefaultDimension = newDimension;
         pt.doUpdate();
 
-        AccountingDistribution accountingDistribution;
-        DimensionAttribute     dimAttr;
-        LedgerDimensionAccount newLedgerDimension;
-        //MainAccount-LineofBusiness-Department-Responsibilitycenter-CostCenter-RevenueClassification
+        AccountingDistribution accountingDistribution, accountingDistribution_all, taxDistribution, taxDistribution_VAT;
+        //DimensionAttribute     dimAttr, dimAttr_VAT;
+        LedgerDimensionAccount newLedgerDimension, newLedgerDimension_VAT;
+        SourceDocumentLine     taxLine, taxLine_VAT;
+
+        // Line (extended price)        
         select firstonly forupdate accountingDistribution
             where accountingDistribution.SourceDocumentLine == purchLine.SourceDocumentLine;
-        newLedgerDimension = accountingDistribution.LedgerDimension;
+        //newLedgerDimension = accountingDistribution.LedgerDimension;
 
-        // Update Line of Business
-        dimAttr = DimensionAttribute::findByName("LineofBusiness");
+        newLedgerDimension = this.applyDimensionChanges(accountingDistribution.LedgerDimension);
 
-        newLedgerDimension = this.replaceDimensionValue(
-        newLedgerDimension,
-        dimAttr,
-        fieldD.value());
+        update_recordset accountingDistribution_all
+            setting LedgerDimension = newLedgerDimension
+            where accountingDistribution_all.SourceDocumentLine == purchLine.SourceDocumentLine;
 
-            // Update Department
-        dimAttr = DimensionAttribute::findByName("Department");
 
-        newLedgerDimension = this.replaceDimensionValue(
-        newLedgerDimension,
-        dimAttr,
-        fieldB.value());
+        //VAT
+        select firstonly taxDistribution_VAT
+            exists join taxLine_VAT
+            where taxLine_VAT.RecId == taxDistribution_VAT.SourceDocumentLine
+            && taxLine_VAT.ParentSourceDocumentLine == purchLine.SourceDocumentLine;
+        //newLedgerDimension_VAT = taxDistribution_VAT.LedgerDimension;
+        newLedgerDimension_VAT = this.applyDimensionChanges(taxDistribution_VAT.LedgerDimension);
 
-        // Responsibilitycenter
-        dimAttr = DimensionAttribute::findByName("Responsibilitycenter");
+        while select forupdate taxDistribution
+            exists join taxLine
+            where taxLine.RecId == taxDistribution.SourceDocumentLine
+            && taxLine.ParentSourceDocumentLine == purchLine.SourceDocumentLine 
+        {
+            //newLedgerDimension_VAT = taxDistribution.LedgerDimension;
 
-        newLedgerDimension = this.replaceDimensionValue(
-        newLedgerDimension,
-        dimAttr,
-        fieldF.value());
+            taxDistribution.LedgerDimension = newLedgerDimension_VAT;
+            taxDistribution.update();
+        }
 
-            // Update Cost Center
-        dimAttr = DimensionAttribute::findByName("CostCenter");
-
-        newLedgerDimension = this.replaceDimensionValue(
-            newLedgerDimension,
-            dimAttr,
-            fieldA.value());
-
-        // Update RevenueClassification
-        dimAttr = DimensionAttribute::findByName("RevenueClassification");
-
-        newLedgerDimension = this.replaceDimensionValue(
-            newLedgerDimension,
-            dimAttr,
-            fieldG.value());
-
-        // Replace previous Ledger Dimension
-        accountingDistribution.LedgerDimension = newLedgerDimension;
-        accountingDistribution.update();
         ttscommit;
         info("Update was done successfully.");
+    }
+
+    private LedgerDimensionAccount applyDimensionChanges(LedgerDimensionAccount _ledgerDimension)
+    {
+        LedgerDimensionAccount newLedgerDimension = _ledgerDimension;
+
+        // MainAccount-LineofBusiness-Department-Responsibilitycenter-CostCenter-RevenueClassification
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("LineofBusiness"),       fieldD.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Department"),           fieldB.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Responsibilitycenter"), fieldF.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("CostCenter"),           fieldA.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("RevenueClassification"),fieldG.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Project"),              fieldE.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Employee"),             fieldC.value());
+
+        return newLedgerDimension;
     }
 
     public LedgerDimensionAccount replaceDimensionValue(
@@ -398,11 +396,11 @@ final class AFZPOLineFinDimUpdate
 
         if (_value == '')
         {
-            // Blank means "clear this dimension"
-            if (_storage.containsDimensionAttribute(attribute.RecId))
-            {
-                _storage.removeDimensionAttribute(attribute.RecId);
-            }
+            // Blank means "clear this dimension"--?
+            //if (_storage.containsDimensionAttribute(attribute.RecId))
+            //{
+            //    _storage.removeDimensionAttribute(attribute.RecId);
+            //}
 
             return;
         }
