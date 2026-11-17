@@ -1,0 +1,34 @@
+//this method considers the accounting currency of the legal entity
+public display AmountMST afzCalculateTotalAmountAED()
+    {
+        purchTotals  purchTotals;
+        PoAmount     PoAmount;
+
+        if (!this.RecId)
+        {
+            return 0;
+        }
+        purchTotals = PurchTotals::newPurchTable(this);
+        purchTotals.calc();
+
+        CurrencyExchangeHelper  currencyExchangeHelper;
+        CurrencyCode            transCurrency;
+ 
+        transCurrency = Ledger::accountingCurrency(CompanyInfo::findDataArea(this.DataAreaId).RecId);
+        if(transCurrency != 'AED')
+        {
+            if(this.CurrencyCode == transCurrency)
+            {
+                currencyExchangeHelper = CurrencyExchangeHelper::newExchangeDate(Ledger::current(), this.AccountingDate);
+                return currencyExchangeHelper.calculateTransactionCurrencyToReportingCurrency(transCurrency, purchTotals.purchTotalAmount());
+            }
+            else
+            {
+                return CurrencyExchangeHelper::amountCur2MST(purchTotals.purchTotalAmount(), this.CurrencyCode);
+            }
+        }
+        else
+        {
+            return CurrencyExchangeHelper::amountCur2MST(purchTotals.purchTotalAmount(), this.CurrencyCode);
+        }
+    }
