@@ -1,5 +1,5 @@
 //this method considers the accounting currency of the legal entity
-public display AmountMST afzCalculateTotalAmountAED()
+    public display AmountMST afzCalculateTotalAmountAED()
     {
         purchTotals  purchTotals;
         PoAmount     PoAmount;
@@ -13,7 +13,8 @@ public display AmountMST afzCalculateTotalAmountAED()
 
         CurrencyExchangeHelper  currencyExchangeHelper;
         CurrencyCode            transCurrency;
- 
+        RefRecId               ledgerRecId;
+
         transCurrency = Ledger::accountingCurrency(CompanyInfo::findDataArea(this.DataAreaId).RecId);
         if(transCurrency != 'AED')
         {
@@ -22,13 +23,29 @@ public display AmountMST afzCalculateTotalAmountAED()
                 currencyExchangeHelper = CurrencyExchangeHelper::newExchangeDate(Ledger::current(), this.AccountingDate);
                 return currencyExchangeHelper.calculateTransactionCurrencyToReportingCurrency(transCurrency, purchTotals.purchTotalAmount());
             }
+            else if(this.CurrencyCode == 'AED')
+            {
+                return purchTotals.purchTotalAmount();
+            }
             else
             {
-                return CurrencyExchangeHelper::amountCur2MST(purchTotals.purchTotalAmount(), this.CurrencyCode);
+                ledgerRecId = Ledger::primaryLedger(
+                CompanyInfo::findDataArea(this.DataAreaId).RecId);
+
+                currencyExchangeHelper =
+                CurrencyExchangeHelper::newExchangeDate(
+                ledgerRecId,
+                this.AccountingDate);
+
+                return      currencyExchangeHelper.calculateTransactionToReporting(
+                this.CurrencyCode,
+                   // 'AED',                
+                purchTotals.purchTotalAmount(),
+                true);
+                //return CurrencyExchangeHelper::amountCur2MST(purchTotals.purchTotalAmount(), this.CurrencyCode, this.AccountingDate, 'AED');
             }
         }
         else
         {
             return CurrencyExchangeHelper::amountCur2MST(purchTotals.purchTotalAmount(), this.CurrencyCode);
         }
-    }
