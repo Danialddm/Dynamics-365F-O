@@ -24,11 +24,11 @@ final class AFZPOLineFinDimUpdate
         {
             return;
         }
-        //if(_purchTable.PurchStatus == PurchStatus::Invoiced)
-        //{
-        //    warning("This PO is fully invoiced. Update financial dimensions is not allowed.");
-        //    return;
-        //}
+        if(PurchTable::find(_purchLine.PurchId).PurchStatus == PurchStatus::Invoiced)
+        {
+            warning("This PO is fully invoiced. Update financial dimensions is not allowed.");
+            return;
+        }
 
         AFZPOLineFinDimUpdate me = new AFZPOLineFinDimUpdate();
         me.purchLine = _purchLine;
@@ -295,7 +295,7 @@ final class AFZPOLineFinDimUpdate
             where accountingDistribution.SourceDocumentLine == purchLine.SourceDocumentLine;
         //newLedgerDimension = accountingDistribution.LedgerDimension;
 
-        newLedgerDimension = this.applyDimensionChanges(accountingDistribution.LedgerDimension);
+        newLedgerDimension = this.applyDimensionChanges(accountingDistribution.LedgerDimension, newDimension);
 
         update_recordset accountingDistribution_all
             setting LedgerDimension = newLedgerDimension
@@ -308,7 +308,7 @@ final class AFZPOLineFinDimUpdate
             where taxLine_VAT.RecId == taxDistribution_VAT.SourceDocumentLine
             && taxLine_VAT.ParentSourceDocumentLine == purchLine.SourceDocumentLine;
         //newLedgerDimension_VAT = taxDistribution_VAT.LedgerDimension;
-        newLedgerDimension_VAT = this.applyDimensionChanges(taxDistribution_VAT.LedgerDimension);
+        newLedgerDimension_VAT = this.applyDimensionChanges(taxDistribution_VAT.LedgerDimension, newDimension);
 
         while select forupdate taxDistribution
             exists join taxLine
@@ -325,18 +325,18 @@ final class AFZPOLineFinDimUpdate
         info("Update was done successfully.");
     }
 
-    private LedgerDimensionAccount applyDimensionChanges(LedgerDimensionAccount _ledgerDimension)
+    private LedgerDimensionAccount applyDimensionChanges(LedgerDimensionAccount _ledgerDimension, DimensionDefault _newDimension)
     {
         LedgerDimensionAccount newLedgerDimension = _ledgerDimension;
 
         // MainAccount-LineofBusiness-Department-Responsibilitycenter-CostCenter-RevenueClassification
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("LineofBusiness"),       fieldD.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Department"),           fieldB.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Responsibilitycenter"), fieldF.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("CostCenter"),           fieldA.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("RevenueClassification"),fieldG.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Project"),              fieldE.value());
-        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Employee"),             fieldC.value());
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("LineofBusiness"),       fieldD.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Department"),           fieldB.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Responsibilitycenter"), fieldF.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("CostCenter"),           fieldA.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("RevenueClassification"),fieldG.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Project"),              fieldE.value(),_newDimension);
+        newLedgerDimension = this.replaceDimensionValue(newLedgerDimension, DimensionAttribute::findByName("Employee"),             fieldC.value(),_newDimension);
 
         return newLedgerDimension;
     }
@@ -344,7 +344,8 @@ final class AFZPOLineFinDimUpdate
     public LedgerDimensionAccount replaceDimensionValue(
         LedgerDimensionAccount _ledgerDimension,
         DimensionAttribute     _dimAttr,
-        DimensionValue         _toDimensionVal)
+        DimensionValue         _toDimensionVal,
+        DimensionDefault __newDimension)
     {
         LedgerDimensionAccount              ledgerDimension;
         DimensionDefault                    defaultDimension;
@@ -376,7 +377,15 @@ final class AFZPOLineFinDimUpdate
         }
         else
         {
-            ledgerDimension = _ledgerDimension;
+            //ledgerDimension = _ledgerDimension;
+            mainAccount = MainAccount::findByMainAccountId(
+            LedgerDimensionFacade::getMainAccountIdFromLedgerDimension(_ledgerDimension));
+
+            defaultAccount =
+            LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountRecId(mainAccount.RecId);
+
+            ledgerDimension = LedgerDimensionFacade::serviceCreateLedgerDimension(defaultAccount, __newDimension);//__newDim is removed dim particle
+
         }
 
         return ledgerDimension;
@@ -397,10 +406,10 @@ final class AFZPOLineFinDimUpdate
         if (_value == '')
         {
             // Blank means "clear this dimension"--?
-            //if (_storage.containsDimensionAttribute(attribute.RecId))
-            //{
-            //    _storage.removeDimensionAttribute(attribute.RecId);
-            //}
+            if (_storage.containsDimensionAttribute(attribute.RecId))
+            {
+                _storage.removeDimensionAttribute(attribute.RecId);
+            }
 
             return;
         }
